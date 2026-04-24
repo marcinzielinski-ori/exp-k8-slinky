@@ -1,0 +1,5 @@
+export NODE="radclustn02"
+
+kubectl label node $NODE slurm.v1.slinky.io/node-name=slinky-0 --overwrite
+kubectl label node $NODE slurm.v1.slinky.io/partition=all --overwrite
+kubectl label node $NODE slinky.v1.slurm.nvidia.com/gpu=1 --overwrite

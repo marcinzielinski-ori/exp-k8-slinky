@@ -1,0 +1,5 @@
+# Update the apt source to the 1.35 channel
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+# Refresh your package lists
+sudo apt-get update

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: h100-verification
+spec:
+  schedulerName: slurm-bridge  # <--- YOU NEED THIS
+  containers:
+  - name: cuda-container
+    image: nvidia/cuda:12.1.0-base-ubuntu22.04
+    command: ["nvidia-smi"]
+    resources:
+      limits:
+        cpu: "20"
+        memory: "210Gi"
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "20"
+        memory: "210Gi"
+        nvidia.com/gpu: 1

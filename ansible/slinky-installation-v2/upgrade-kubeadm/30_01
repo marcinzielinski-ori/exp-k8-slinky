@@ -1,0 +1,2 @@
+kubectl rollout restart deployment -n slinky slurm-bridge-scheduler
+kubectl rollout restart deployment -n slinky slurm-bridge-controllers

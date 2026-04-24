@@ -1,0 +1,10 @@
+rke2_cluster_cidr:   "10.42.0.0/16"
+rke2_service_cidr:   "10.43.0.0/16"
+rke2_cni:            flannel
+
+cert_manager_version: "v1.14.4"
+rancher_hostname:     rancher.local
+rancher_namespace:    cattle-system
+
+output_dir: "{{ playbook_dir }}/output"
+kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/rke2-local.yaml"

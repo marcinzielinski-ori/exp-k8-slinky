@@ -1,0 +1,169 @@
+#!/usr/bin/env -S ansible-playbook -vv
+---
+# Phase 02 — RKE2 Control Plane
+# Steps: system-prep → install → configure → start → bootstrap → export credentials
+
+- name: "02-1 | System prep — control plane"
+  hosts: control_plane
+  gather_facts: true
+  tasks:
+    - name: Disable swap (runtime)
+      ansible.builtin.command: swapoff -a
+      changed_when: false
+
+    - name: Remove swap entries from fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '.*\bswap\b.*'
+        state: absent
+
+    - name: Load required kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop: [overlay, br_netfilter]
+
+    - name: Persist kernel modules across reboots
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: "overlay\nbr_netfilter\n"
+        mode: '0644'
+
+    - name: Apply sysctl settings for Kubernetes
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_file: /etc/sysctl.d/99-k8s.conf
+        reload: true
+      loop:
+        - { key: net.bridge.bridge-nf-call-iptables,  value: "1" }
+        - { key: net.bridge.bridge-nf-call-ip6tables, value: "1" }
+        - { key: net.ipv4.ip_forward,                 value: "1" }
+
+
+- name: "02-2 | Install and configure RKE2 server"
+  hosts: control_plane
+  gather_facts: true
+  tasks:
+    - name: Install RKE2 server binary
+      ansible.builtin.shell:
+        cmd: curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=server sh -
+        creates: /usr/local/bin/rke2
+
+    - name: Create RKE2 config directory
+      ansible.builtin.file:
+        path: /etc/rancher/rke2
+        state: directory
+        mode: '0755'
+
+    - name: Write RKE2 server config
+      ansible.builtin.copy:
+        dest: /etc/rancher/rke2/config.yaml
+        mode: '0640'
+        content: |
+          write-kubeconfig-mode: '0644'
+          tls-san:
+            - {{ ansible_lima0.ipv4.address }}
+            - mzcl01-cp.local
+            - localhost
+            - 127.0.0.1
+          node-ip: {{ ansible_lima0.ipv4.address }}
+          node-name: mzcl01-cp
+          cni: {{ rke2_cni }}
+          cluster-cidr: {{ rke2_cluster_cidr }}
+          service-cidr: {{ rke2_service_cidr }}
+          disable:
+            - rke2-ingress-nginx
+          kubelet-arg:
+            - node-status-update-frequency=10s
+
+
+- name: "02-3 | Start RKE2 and wait for cluster bootstrap"
+  hosts: control_plane
+  gather_facts: true
+  tasks:
+    - name: Enable and start rke2-server service
+      ansible.builtin.systemd:
+        name: rke2-server
+        enabled: true
+        state: started
+
+    - name: Wait for RKE2 API server to be ready (up to 5 min)
+      ansible.builtin.command:
+        cmd: /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes
+      register: api_ready
+      until: api_ready.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Read node join token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/rke2/server/node-token
+      register: node_token
+
+    - name: Save join vars to output dir (for phase 03)
+      ansible.builtin.copy:
+        dest: "{{ output_dir }}/rke2_join_vars.yml"
+        mode: '0600'
+        content: |
+          rke2_join_token: "{{ node_token.content | b64decode | trim }}"
+          rke2_server_url: "https://{{ ansible_lima0.ipv4.address }}:9345"
+          rke2_cp_ip: "{{ ansible_lima0.ipv4.address }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Fetch raw kubeconfig from control plane
+      ansible.builtin.fetch:
+        src: /etc/rancher/rke2/rke2.yaml
+        dest: "{{ output_dir }}/rke2-raw.yaml"
+        flat: true
+
+
+- name: "02-4 | Set up kubeconfig on macOS host"
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Ensure output dir exists
+      ansible.builtin.file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Load CP IP from join vars
+      ansible.builtin.include_vars:
+        file: "{{ output_dir }}/rke2_join_vars.yml"
+
+    - name: Ensure ~/.kube directory exists
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/.kube"
+        state: directory
+        mode: '0700'
+
+    - name: Replace loopback address with CP IP in kubeconfig
+      ansible.builtin.replace:
+        path: "{{ output_dir }}/rke2-raw.yaml"
+        regexp: '127\.0\.0\.1'
+        replace: "{{ rke2_cp_ip }}"
+
+    - name: Set context name to rke2-local
+      ansible.builtin.replace:
+        path: "{{ output_dir }}/rke2-raw.yaml"
+        regexp: '\bdefault\b'
+        replace: rke2-local
+
+    - name: Write kubeconfig to ~/.kube/rke2-local.yaml
+      ansible.builtin.copy:
+        src: "{{ output_dir }}/rke2-raw.yaml"
+        dest: "{{ kubeconfig }}"
+        mode: '0600'
+
+    - name: Verify cluster is reachable from host
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ kubeconfig }} get nodes -o wide
+      register: nodes_out
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ nodes_out.stdout_lines }}"

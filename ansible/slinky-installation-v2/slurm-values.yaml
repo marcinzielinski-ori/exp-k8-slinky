@@ -1,0 +1,33 @@
+configFiles:
+  gres.conf: |
+    AutoDetect=nvidia
+
+slurm:
+  conf:
+    GresTypes: gpu
+  nodes:
+    - name: "slinky-0"
+      cpus: 20
+      realMemory: 210000
+      gres: "gpu:1"
+
+# THE FIX: Resources must be nested under the specific NodeSet name
+nodesets:
+  slinky:
+    slurmd:
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+          cpu: "20"
+          memory: "210Gi"
+        requests:
+          nvidia.com/gpu: 1
+          cpu: "20"
+          memory: "210Gi"
+      env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+        - name: LD_LIBRARY_PATH
+          value: "/usr/local/nvidia/lib64"

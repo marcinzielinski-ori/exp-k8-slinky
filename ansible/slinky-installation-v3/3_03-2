@@ -1,0 +1,8 @@
+helm upgrade slurm oci://ghcr.io/slinkyproject/charts/slurm \
+  --version 1.0.2 \
+  --namespace slurm \
+  --reuse-values \
+  --set "slurmd.resources.limits.nvidia\.com/gpu=1" \
+  --set "slurm.nodes[0].name=radclustn02" \
+  --set "slurm.nodes[0].gres=gpu:1" \
+  --set "slurm.conf.GresTypes=gpu"

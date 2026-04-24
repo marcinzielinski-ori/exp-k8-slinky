@@ -1,0 +1,17 @@
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: final-boss-job
+  annotations:
+    slinky.slurm.net/gres: "gpu:1"
+spec:
+  schedulerName: slurm-bridge-scheduler
+  containers:
+  - name: cuda
+    image: nvidia/cuda:12.8.0-base-ubuntu24.04
+    command: ["nvidia-smi"]
+    env:
+      - name: NVIDIA_VISIBLE_DEVICES
+        value: "all"
+EOF

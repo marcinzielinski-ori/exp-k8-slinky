@@ -1,0 +1,1000 @@
+  286        }
+  287      }
+  288    }
+  289  }'
+  290  kubectl delete pod -n slurm slurm-worker-slinky-0
+  291  k get pods -A -w
+  292  k get pods -A
+  293  k get pods -A -w
+  294  kubectl describe nodeset -n slurm slurm-worker-slinky
+  295  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-operator
+  296  k get pods -A
+  297  kubectl delete nodeset -n slurm slurm-worker-slinky
+  298  vi _applyfix_restart_ 
+  299  source _applyfix_restart_ 
+  300  kubectl describe pod -n slurm slurm-worker-slinky-0 | grep -A 10 "Resources:"
+  301  kubectl describe pod -n slurm slurm-worker-slinky-0 | grep -A 20 "Resources:"
+  302  kubectl describe pod -n slurm slurm-worker-slinky-0 | grep -A 80 "Resources:"
+  303  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  304  kubectl patch nodeset -n slurm slurm-worker-slinky --type='merge' -p '
+  305  {
+  306    "spec": {
+  307      "slurmd": {
+  308        "resources": {
+  309          "limits": {
+  310            "cpu": "22",
+  311            "memory": "230Gi",
+  312            "nvidia.com/gpu": "1"
+  313          },
+  314          "requests": {
+  315            "cpu": "22",
+  316            "memory": "230Gi",
+  317            "nvidia.com/gpu": "1"
+  318          }
+  319        }
+  320      }
+  321    }
+  322  }'
+  323  kubectl delete pod -n slurm slurm-worker-slinky-0
+  324  k get pods -A -w
+  325  kubectl describe pod -n slurm slurm-worker-slinky-0 | grep -A 15 "Containers:"
+  326  k get pods -A -w
+  327  k describe pod -n slurm slurm-worker-slinky-0 
+  328  k get nodes
+  329  ll
+  330  vi new-slurm-values.yaml 
+  331  ll
+  332  cat new-slurm-values.yaml 
+  333  history
+  334  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  335  k get pods -A
+  336  k describe pod -n slurm slurm-worker-slinky-0 
+  337  vi new-slurm-values.yaml 
+  338  ./_
+  339  source _applyfix_restart_ 
+  340  k describe pod -n slurm slurm-worker-slinky-0 
+  341  k get pods -A
+  342  k delete pod -n slurm slurm-worker-slinky-0 
+  343  k get pods -A
+  344  k describe pod -n slurm slurm-worker-slinky-0 
+  345  vi new-slurm-values.yaml 
+  346  vi _applyfix_restart_ 
+  347  source  _applyfix_restart_ 
+  348  k describe pod -n slurm slurm-worker-slinky-0 
+  349  vi new-slurm-values.yaml 
+  350  kubectl delete nodeset -n slurm slurm-worker-slinky
+  351  k get pods -A
+  352  kubectl get pods -n slurm -w
+  353  kubectl get pods -n slurm 
+  354  kubectl get pods -A
+  355  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  356  source _applyfix_restart_ 
+  357  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  358  k label 
+  359  k label ps
+  360  k label list
+  361  k label node
+  362  k l
+  363  k 
+  364  k  get 
+  365  k  explain label
+  366  k get pods -A
+  367  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  368  kubectl label node radclustn02 slinky.v1.slurm.nvidia.com/gpu=1 --overwrite
+  369  kubectl delete nodeset -n slurm slurm-worker-slinky
+  370  source _applyfix_restart_ 
+  371  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  372  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  373  kubectl logs -n slurm slurm-worker-slinky-0 -c slurmd | grep -Ei "gres|nvidia|nvml"
+  374  kubectl label node radclustn02 slurm.v1.slinky.io/node-name=slinky-0 --overwrite
+  375  kubectl describe node
+  376  vi _applyfix_restart_ 
+  377  history
+  378  vi _applyfix_restart_ 
+  379  source _applyfix_restart_ 
+  380  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  381  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  382  kubectl logs -n slurm slurm-worker-slinky-0 -c slurmd | grep -Ei "gres|nvidia|nvml"
+  383  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show config | grep -i gres
+  384  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol reconfigure
+  385  sleep 5
+  386  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  387  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol update NodeName=slinky-0 Gres=gpu:1
+  388  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0 | grep Gres
+  389  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  390  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  391  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- /bin/bash
+  392  which nvidia-smi
+  393  vi new-slurm-values.yaml 
+  394  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- /bin/bash
+  395  kubectl exec -n slurm -it slurm-controller-0 -c slurmd -- /bin/bash
+  396  kubectl exec -n slurm -it slurm-controller-0 -c slurmcltd -- /bin/bash
+  397  kubectl exec -n slurm -it slurm-controller-0 -- /bin/bash
+  398  ll
+  399  vi job-slinky.yaml
+  400  k apply -f job-slinky.yaml 
+  401  ls -la
+  402  cat job-slinky.yaml 
+  403  k get jobs
+  404  k get jobs -A
+  405  k get pods -A
+  406  k describe pod -n default h100-verification 
+  407  k get pods -A
+  408  k describe pod -n default h100-verification 
+  409  kubectl logs h100-verification
+  410  kubectl delete pod h100-verification
+  411  vi job-slinky.yaml 
+  412  k apply -f job-slinky.yaml 
+  413  k get pods -A
+  414  k logs h100-verification 
+  415  kubectl describe pod h100-verification 
+  416  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers
+  417  CURRENT_TOKEN=$(kubectl get secret -n slurm slurm-auth-slurm -o jsonpath='{.data.auth-token}' | base64 -d | tr -d '\n' | tr -d ' ')
+  418  echo $CURRENT_TOKEN 
+  419  kubectl get secret -n slurm slurm-auth-slurm 
+  420  kubectl get secret -n slurm slurm-auth-slurm -o jsonpath='{.data.auth-token}'
+  421  kubectl get secret -n slurm slurm-auth-slurm
+  422  NEW_TOKEN=$(kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d'=' -f2)
+  423  echo $NEW_TOKEN 
+  424  kubectl create secret generic slurm-auth-slurm   -n slurm   --from-literal=auth-token=$NEW_TOKEN   --dry-run=client -o yaml | kubectl apply -f -
+  425  kubectl delete secret -n slurm slurm-auth-slurm
+  426  kubectl create secret generic slurm-auth-slurm   -n slurm   --from-literal=auth-token=$NEW_TOKEN
+  427  kubectl rollout restart deployment -n slurm slurm-restapi
+  428  kubectl rollout restart deployment -n slinky slurm-bridge-controllers
+  429  sleep 15
+  430  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers | tail -n 20
+  431  k get pods -A
+  432  kubectl delete pod h100-verification --force --grace-period=0
+  433  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers | tail -n 20
+  434  kubectl get secret -n slurm slurm-auth-slurm -o jsonpath='{.data.auth-token}' | base64 -d | xxd
+  435  kubectl get secret -n slurm slurm-auth-slurm -o jsonpath='{.data.auth-token}'
+  436  kubectl get secret -n slurm slurm-auth-slurm -o jsonpath='{.data.auth-token}' | base64 -d | xxd
+  437  # Force delete the Bridge and REST API pods
+  438  kubectl delete pods -n slurm -l app.kubernetes.io/name=slurm-restapi --force
+  439  kubectl delete pods -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers --force
+  440  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers | tail -n 20
+  441  kubectl delete pod h100-verification --force --grace-period=0
+  442  kubectl delete pod h100-verification --force 
+  443  k get pods -A
+  444  ll
+  445  k get pods -A
+  446  kubectl -n slurm exec slurm-controller-0 -it -- cat /etc/slurm/slurm.conf | grep -i gpu
+  447  ll
+  448  mkdir slinky-installation-v2
+  449  mv get_helm.sh job-slinky.yaml new-slurm-values.yaml slurm-values.yaml slinky-installation-v2/
+  450  ll
+  451  ll *_*
+  452  mv *_* slinky-installation-v2/
+  453  ll
+  454  mv slinky-installation-v2/ /home/ubuntu/
+  455  cd /home/ubuntu/
+  456  exit
+  457  histor 
+  458  histor y
+  459  history
+  460  nvidia-smi 
+  461  history | grep "apt install"
+  462  ll
+  463  cd /home/ubuntu/
+  464  ll
+  465  vi phase2_kubernetes.sh 
+  466  ll slinky-installation-v2/
+  467  cd
+  468  ll
+  469  ll /home/ubuntu/
+  470  mv /home/ubuntu/slinky-installation-v2/ ./
+  471  ll
+  472  cd slinky-installation-v2/
+  473  ll
+  474  vi 10_01
+  475  source 10_01 
+  476  mv 10_01 2_11
+  477  vi 2_11
+  478  source 2_11 
+  479  kubectl get node -o custom-columns="NODE:.metadata.name,GPUs:.status.allocatable.nvidia\.com/gpu"
+  480  kubectl get pods -n slinky
+  481  ll
+  482  rm slurm-values.yaml 
+  483  mv new-slurm-values.yaml slurm-values.yaml 
+  484  vi _applyfix_restart_ 
+  485  source _applyfix_restart_ 
+  486  k describe pod -n gpu-operator nvidia-cuda-validator-779nl 
+  487  k describe pod -n gpu-operator nvidia-operator-validator-7c24r 
+  488  k get pods -A
+  489  k logs -n gpu-operator nvidia-operator-validator-7c24r 
+  490  k logs -n gpu-operator nvidia-cuda-validator-779nl 
+  491  sudo systemctl restart containerd
+  492  k get pods -A
+  493  kubectl delete pod -n gpu-operator -l app=nvidia-cuda-validator
+  494  kubectl delete pod -n gpu-operator -l app=nvidia-operator-validator
+  495  kubectl get pods -n gpu-operator -w
+  496  k logs -n gpu-operator nvidia-cuda-validator-xclsj 
+  497  kubectl logs -n gpu-operator nvidia-cuda-validator-xclsj -c cuda-validation
+  498  k get pods -A
+  499  helm upgrade gpu-operator nvidia/gpu-operator   -n gpu-operator   --reuse-values   --set driver.enabled=true
+  500  kubectl get pods -n gpu-operator -w
+  501  k describe pod -n gpu-operator nvidia-cuda-validator-slnhd 
+  502  kubectl get pods -n gpu-operator | grep driver
+  503  dmesg -T | grep -iE "nvidia|nvrm|nouveau" | tail -n 20
+  504  k get pods -A
+  505  modprobe nvidia-uvm
+  506  nvidia-smi -pm 1
+  507  ls -la /dev/nvidia*
+  508  kubectl delete pod -n gpu-operator -l app=nvidia-cuda-validator
+  509  kubectl delete pod -n gpu-operator -l app=nvidia-operator-validator
+  510  kubectl get pods -n gpu-operator -w
+  511  lsmod | grep nvidia
+  512  kubectl get pods -n gpu-operator -A
+  513  kubectl delete daemonset -n kube-system nvidia-device-plugin-daemonset
+  514  sudo systemctl restart containerd
+  515  sudo systemctl restart kubelet
+  516  kubectl delete pod -n gpu-operator -l app=nvidia-cuda-validator
+  517  kubectl delete pod -n gpu-operator -l app=nvidia-operator-validator
+  518  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  519  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  520  exit
+  521  kubectl delete pod -n gpu-operator -l app=nvidia-cuda-validator
+  522  kubectl delete pod -n gpu-operator -l app=nvidia-operator-validator
+  523  kubectl get pods -n gpu-operator -w
+  524  kubectl describe pod -n gpu-operator nvidia-cuda-validator-jtr9n 
+  525  k logs -n gpu-operator nvidia-cuda-validator-jtr9n 
+  526  # Only run this if the pods fail again!
+  527  helm upgrade gpu-operator nvidia/gpu-operator -n gpu-operator --reuse-values --set validator.plugin.env[0].name=WITH_WORKLOAD --set validator.plugin.env[0].value="false"
+  528  helm upgrade gpu-operator nvidia/gpu-operator -n gpu-operator   --reuse-values   --set validator.enabled=false
+  529  kubectl get pods -n gpu-operator
+  530  kubectl get pods -n gpu-operator -w
+  531  kubectl get node radclustn02 -o custom-columns="NODE:.metadata.name,GPUs:.status.allocatable.nvidia\.com/gpu"
+  532  kubectl get pods -n gpu-operator -w
+  533  kubectl get pods -n gpu-operator
+  534  k delete pod -n gpu-operator nvidia-cuda-validator-jtr9n nvidia-operator-validator-t2fb2 
+  535  kubectl get pods -n gpu-operator -w
+  536  kubectl logs -n gpu-operator nvidia-driver-daemonset-p97x5 -c nvidia-driver-ctr
+  537  oc logs nvidia-cuda-validator-4bnbm -c cuda-validation -n nvidia-gpu-operator
+  538  k logs nvidia-cuda-validator-4ck92 -c cuda-validation -n nvidia-gpu-operator
+  539  k logs nvidia-cuda-validator-4ck92 -c cuda-validation -n gpu-operator
+  540  k get pods -A
+  541  k logs -n gpu-operator pods/nvidia-cuda-validator-szhjs 
+  542  vi job-test.yaml
+  543  source job-test.yaml 
+  544  k logs gpu-test-raw 
+  545  cat _ap
+  546  ll
+  547  cd slinky-installation-v2/
+  548  ll
+  549  cat _applyfix_restart_ 
+  550  source _applyfix_restart_ 
+  551  k get pods -A
+  552  k logs -n slurm pods/slurm-controller-0 
+  553  k describe pod -n slurm slurm-controller-0 
+  554  # Generate the private key (slurm.key)
+  555  openssl genrsa -out slurm.key 2048
+  556  # Extract the public key (slurm.cert)
+  557  openssl rsa -in slurm.key -pubout -out slurm.cert
+  558  kubectl delete secret slurm-etc -n slurm --ignore-not-found
+  559  kubectl create secret generic slurm-etc -n slurm   --from-file=slurm.key=slurm.key   --from-file=slurm.cert=slurm.cert
+  560  kubectl delete pod -n slurm -l app.kubernetes.io/name=slurm-controller --force
+  561  kubectl get pods -n slurm -w
+  562  kubectl delete pod -n slurm slurm-controller-0 
+  563  kubectl get pods -n slurm -w
+  564  k describe pod -n slurm slurm-controller-0 
+  565  kubectl delete secret slurm-etc -n slurm --ignore-not-found
+  566  kubectl delete secret slurm-auth-slurm -n slurm --ignore-not-found
+  567  SLURM_KEY=$(openssl rand -base64 32)
+  568  echo $SLURM_KEY 
+  569  kubectl create secret generic slurm-auth-slurm -n slurm --from-literal=slurm.key="$SLURM_KEY"
+  570  kubectl delete pod -n slurm -l app.kubernetes.io/name=slurm-controller --force
+  571  kubectl delete pod -n slurm slurm-controller-0 
+  572  kubectl get pods -n slurm -w
+  573  kubectl get pods -n slurm 
+  574  kubectl get pods -A 
+  575  source _applyfix_restart_ 
+  576  k logs -n gpu-operator pods/nvidia-cuda-validator-nfpk6 
+  577  k describe pod -n gpu-operator nvidia-cuda-validator-nfpk6 
+  578  CLEAN_TOKEN=$(kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d'=' -f2 | tr -d '\n' | tr -d '\r' | tr -d ' ')
+  579  echo $CLEAN_TOKEN 
+  580  ll
+  581  cat job-slinky.yaml 
+  582  cat ../job-test.yaml 
+  583  mv ../job-test.yaml ./job-k8.yaml
+  584  ll
+  585  vi job-slinky.yaml 
+  586  k apply -f job-slinky.yaml 
+  587  cat job-slinky.yaml 
+  588  k logs h100-verification 
+  589  k get pods -A
+  590  k describe pod h100-verification 
+  591  k delete job h1
+  592  k delete pod h100-verification 
+  593  ll
+  594  k get pods -A
+  595  history | grep nvidia-smi
+  596  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  597  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  598  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- sinfo -Nel
+  599  cat _applyfix_restart_ 
+  600  vi _applyfix_restart_ 
+  601  source _applyfix_restart_ 
+  602  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol show node slinky-0
+  603  k logs pod -n slurm slurm-worker-slinky-0
+  604  k logs -n slurm slurm-worker-slinky-0
+  605  vi _applyfix_restart_ 
+  606  source _p
+  607  source _applyfix_restart_ 
+  608  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  609  k logs -n gpu-operator nvidia-cuda-validator-98gqk 
+  610  k logs -n gpu-operator nvidia-cuda-validator-98gqk -c nvidia-validation
+  611  k describe pod -n gpu-operator nvidia-cuda-validator-98gqk 
+  612  kubectl logs -n gpu-operator nvidia-cuda-validator-98gqk -c cuda-validation
+  613  kubectl logs -n gpu-operator nvidia-cuda-validator-98gqk -c cuda-validation -p
+  614  k get pods -A
+  615  kubectl logs -n gpu-operator nvidia-cuda-validator-b8mnp -c cuda-validation -p
+  616  kubectl logs -n gpu-operator nvidia-cuda-validator-b8mnp -c cuda-validation
+  617  k describe pod -n gpu-operator nvidia-cuda-validator-98gqk 
+  618  k describe pod -n gpu-operator nvidia-cuda-validator-b8mnp 
+  619  k get pods -A
+  620  k describe pod -n gpu-operator nvidia-cuda-validator-b8mnp 
+  621  kubectl logs -n gpu-operator nvidia-cuda-validator-b8mnp -c cuda-validation
+  622  kubectl logs -n gpu-operator nvidia-cuda-validator-b8mnp -c cuda-validation -p
+  623  kubectl logs --all-containers -l app=nvidia-operator-validator -n gpu-operator
+  624  kubectl describe pod -l app=nvidia-device-plugin-daemonset -n gpu-operator
+  625  helm upgrade gpu-operator nvidia/gpu-operator -n gpu-operator   --reuse-values   --set validator.enabled=false
+  626  k get pods -A
+  627  k delete pod -n gpu-operator nvidia-cuda-validator-b8mnp nvidia-operator-validator-xsq9j 
+  628  k get pods -A
+  629  # 1. Uninstall Slurm
+  630  helm uninstall slurm -n slurm
+  631  # 2. Uninstall the GPU Operator
+  632  helm uninstall gpu-operator -n gpu-operator
+  633  kubectl get pods -n gpu-operator
+  634  sudo apt-get remove --purge -y '^nvidia-.*' '^libnvidia-.*' '^cuda-.*'
+  635  sudo apt-get autoremove --purge -y
+  636  reboot
+  637  history
+  638  kubectl get pod -n gpu-operator -l app.kubernetes.io/name=gpu-operator -o jsonpath='{.items[0].spec.containers[0].image}'
+  639  history 2000 | grep nvidia-smi
+  640  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  641  ll
+  642  k get pods -A
+  643  ll
+  644  cd slinky-installation-v2/
+  645  ll
+  646  vi _applyfix_restart_ 
+  647  source _applyfix_restart_ 
+  648  ll
+  649  cat _applyfix_restart_ 
+  650  helm  install slurm oci://ghcr.io/slinkyproject/charts/slurm   --version 1.0.2   --namespace slurm   -f slurm-values.yaml
+  651  cat _applyfix_restart_ 
+  652  k get pods -A -w
+  653  kubectl exec -n slurm -it slurm-worker-slinky-0 -c slurmd -- nvidia-smi
+  654  ll
+  655  vi 4_01 
+  656  vi 3_03-2
+  657  vi 3_03
+  658  vi _applyfix_restart_ 
+  659  vi 3_03
+  660  rm 3_03-2 
+  661  ll
+  662  grep token *
+  663  vi 4_01
+  664  vi 4_02
+  665  vi 4_01-restart
+  666  source 4_01-restart
+  667  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers | tail -n 10
+  668  RAW_TOKEN=$(kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | grep "token=" | cut -d'=' -f2)
+  669  echo $RAW_TOKEN 
+  670  kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000
+  671  kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d'=' -f
+  672  kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d = -f
+  673  kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d'=' -f 2
+  674  kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d'=' -f 2 | tr -d '[:space:]'
+  675  newtoken=$(kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d'=' -f 2 | tr -d '[:space:]')
+  676  echo $newtoken 
+  677  printf "%s" "$CLEAN_TOKEN"
+  678  printf "%s" "$newtoken"
+  679  clear
+  680  ll
+  681  vi 4_01-restart 
+  682  source 4_01-restart 
+  683  kubectl delete pods -n slurm -l app.kubernetes.io/name=slurm-restapi --force
+  684  kubectl delete pods -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers --force
+  685  k get pods -n slinky -w
+  686  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers | tail -n 10
+  687  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers | tail -n 20
+  688  vi 4_01-restart 
+  689  source 4_01-restart 
+  690  sudo /usr/bin/nvidia-uninstall -s
+  691  sudo rm -rf /dev/nvidia*
+  692  nvidia-smi
+  693  # Should return: "Command 'nvidia-smi' not found"
+  694  lsmod | grep nvidia
+  695  # Should return absolutely nothing
+  696  helm install gpu-operator nvidia/gpu-operator   -n gpu-operator   --create-namespace   --set driver.enabled=true   --set toolkit.enabled=true   --set devicePlugin.enabled=true
+  697  kubectl get pods -n gpu-operator -w
+  698  kubectl get pods -n gpu-operator
+  699  history
+  700  kubectl logs --all-containers -l app=nvidia-operator-validator -n gpu-operator
+  701  ll /run/nvidia*
+  702  ll /run/nvidia/driver/
+  703  ll /run/nvidia/driver/dev/
+  704  kubectl delete pods -n gpu-operator -l app=nvidia-cuda-validator --force
+  705  kubectl get pods -n gpu-operator
+  706  kubectl delete pods -n gpu-operator -l app=nvidia-operator-validator --force
+  707  kubectl get pods -n gpu-operator
+  708  kubectl logs --all-containers -l app=nvidia-operator-validator -n gpu-operator
+  709  kubectl get pods -n gpu-operator
+  710  kubectl patch clusterpolicy cluster-policy --type='json' -p='[{"op": "remove", "path": "/spec/validator"}]'
+  711  kubectl get pods -n gpu-operator
+  712  # This clears the staging area for the driver symlinks
+  713  sudo rm -rf /run/nvidia/*
+  714  kubectl delete pod -n gpu-operator-resources -l app=nvidia-driver-daemonset
+  715  k get pods -A
+  716  kubectl logs --all-containers -l app=nvidia-operator-validator -n gpu-operator
+  717  cat /var/log/pods/gpu-operator_nvidia-operator-validator-knpnz_19c810c3-6ea5-4b8c-a48d-f141ae39c240/driver-validation/0.log
+  718  cat /var/log/pods/gpu-operator_nvidia-operator-validator-knpnz_19c810c3-6ea5-4b8c-a48d-f141ae39c240/cuda-validation/0.log 
+  719  cd /var/log/pods/
+  720  ll
+  721  ll gpu-operator_*/
+  722  ll gpu-operator_*/*/
+  723  cat gpu-operator_*/*/*.log
+  724  kubectl get clusterpolicy -o yaml
+  725  cat /proc/cmdline
+  726  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  727    {"op": "add", "path": "/spec/validator", "value": {
+  728      "repository": "nvcr.io/nvidia/cloud-native",
+  729      "image": "gpu-operator-validator",
+  730      "version": "v26.3.0",
+  731      "imagePullPolicy": "IfNotPresent"
+  732    }}
+  733  ]'
+  734  k get pods -A
+  735  k get pods -A -w
+  736  k describe pod -n gpu-operator  nvidia-container-toolkit-daemonset-5vl97 
+  737  k get pods -A
+  738  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  739    {"op": "replace", "path": "/spec/validator", "value": {
+  740      "repository": "nvcr.io/nvidia",
+  741      "image": "gpu-operator-validator",
+  742      "version": "v26.3.0",
+  743      "imagePullPolicy": "IfNotPresent"
+  744    }}
+  745  ]'
+  746  cat <<EOF | kubectl apply -f -
+  747  apiVersion: nvidia.com/v1
+  748  kind: ClusterPolicy
+  749  metadata:
+  750    name: cluster-policy
+  751  spec:
+  752    # 1. Essential for H100
+  753    fabricManager:
+  754      enabled: true
+  755      repository: nvcr.io/nvidia
+  756      version: 580.126.20
+  757    
+  758    # 2. Fix the Validator
+  759    validator:
+  760      repository: nvcr.io/nvidia
+  761      image: gpu-operator-validator
+  762      version: v26.3.0
+  763    # 3. Disable the complex stuff causing IOMMU errors (unless you need them)
+  764    ccManager:
+  765      enabled: false
+  766    vfioManager:
+  767      enabled: false
+  768    vgpuManager:
+  769      enabled: false
+  770    vgpuDeviceManager:
+  771      enabled: false
+  772    # 4. Standard Components
+  773    driver:
+  774      enabled: true
+  775      version: 580.126.20
+  776    toolkit:
+  777      enabled: true
+  778    devicePlugin:
+  779      enabled: true
+  780    dcgmExporter:
+  781      enabled: true
+  782    gfd:
+  783      enabled: true
+  784  EOF
+  785  k get pods -A
+  786  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  787    {"op": "replace", "path": "/spec/validator/repository", "value": "nvcr.io/nvidia"},
+  788    {"op": "replace", "path": "/spec/validator/image", "value": "gpu-operator-validator"}
+  789  ]'
+  790  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  791    {"op": "replace", "path": "/spec/ccManager/enabled", "value": false},
+  792    {"op": "replace", "path": "/spec/vfioManager/enabled", "value": false}
+  793  ]'
+  794  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  795    {"op": "replace", "path": "/spec/ccManager/enabled", "value": false},
+  796    {"op": "replace", "path": "/spec/vfioManager/enabled", "value": false}
+  797  ]'
+  798  kubectl get clusterpolicy cluster-policy -o jsonpath='{.spec.fabricManager.enabled}'
+  799  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  800    {"op": "add", "path": "/spec/fabricManager", "value": {"enabled": true, "repository": "nvcr.io/nvidia", "version": "580.126.20"}}
+  801  ]'
+  802  # Delete the stuck validator and toolkit pods
+  803  kubectl delete pods -n gpu-operator -l app=nvidia-cuda-validator
+  804  kubectl delete pods -n gpu-operator -l app=nvidia-operator-validator
+  805  kubectl delete pods -n gpu-operator -l app=nvidia-container-toolkit-daemonset
+  806  k get pods -A
+  807  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  808    {"op": "add", "path": "/spec/validator", "value": {
+  809      "repository": "nvcr.io/nvidia",
+  810      "image": "gpu-operator-validator",
+  811      "version": "v26.3.0",
+  812      "imagePullPolicy": "IfNotPresent"
+  813    }}
+  814  ]'
+  815  kubectl exec -n gpu-operator -it ds/nvidia-driver-daemonset -- nvidia-smi
+  816  kubectl explain clusterpolicy.spec | grep -i fabric
+  817  kubectl logs -n gpu-operator -l app=nvidia-driver-daemonset --all-containers
+  818  kubectl logs -n gpu-operator --all-containers
+  819  history
+  820  kubectl logs --all-containers -l app=nvidia-operator-validator -n gpu-operator
+  821  kubectl delete clusterpolicy cluster-policy
+  822  kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/v26.3.0/deployments/container/crds/nvidia.com_clusterpolicies.yaml
+  823  kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/v26.3.0/deployments/gpu-operator/crds/nvidia.com_clusterpolicies.yaml
+  824  kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/v26.3.0/deployments/gpu-operator/crds/nvidia.com_nvidiadrivers.yaml
+  825  cd
+  826  vi new-cluster.yaml
+  827  source new-cluster.yaml 
+  828  # Update the ClusterPolicy definition
+  829  kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/v26.3.0/deployments/gpu-operator/crds/nvidia.com_clusterpolicies.yaml
+  830  # Update the Driver definition
+  831  kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/v26.3.0/deployments/gpu-operator/crds/nvidia.com_nvidiadrivers.yaml
+  832  vi new-cluster.yaml-2
+  833  source new-cluster.yaml-2
+  834  # Force-update the ClusterPolicy and Driver definitions
+  835  kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/v26.3.0/deployments/gpu-operator/crds/nvidia.com_clusterpolicies.yaml
+  836  kubectl apply -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/v26.3.0/deployments/gpu-operator/crds/nvidia.com_nvidiadrivers.yaml
+  837  # Force replace the CRD to ensure the new fields exist
+  838  kubectl replace -f https://raw.githubusercontent.com/NVIDIA/gpu-operator/main/deployments/gpu-operator/crds/nvidia.com_clusterpolicies.yaml
+  839  source new-cluster.yaml-2
+  840  kubectl get crd clusterpolicies.nvidia.com -o jsonpath='{.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties}' | grep -o 'fabricManager'
+  841  kubectl get crd clusterpolicies.nvidia.com -o jsonpath='{.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties}'
+  842  kubectl get crd clusterpolicies.nvidia.com -o jsonpath='{.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties}' | grep -i fabric
+  843  kubectl explain clusterpolicy.spec.fabricManager
+  844  kubectl delete clusterpolicy cluster-policy
+  845  vi new-cluster.yaml-2 
+  846  vi new-cluster.yaml
+  847  vi new-cluster.yaml-3
+  848  source new-cluster.yaml-3
+  849  vi new-cluster.yaml-4
+  850  source new-cluster.yaml-4
+  851  k get pods -A
+  852  k get pods -A -w
+  853  k describe pod -n gpu-operator nvidia-container-toolkit-daemonset-lbtbq 
+  854  kubectl patch clusterpolicy cluster-policy --type='json' -p='[
+  855    {"op": "replace", "path": "/spec/validator", "value": {
+  856      "repository": "nvcr.io/nvidia/cloud-native",
+  857      "image": "gpu-operator-validator",
+  858      "version": "v26.3.0",
+  859      "imagePullPolicy": "IfNotPresent"
+  860    }}
+  861  ]'
+  862  k describe pod -n gpu-operator nvidia-container-toolkit-daemonset-lbtbq 
+  863  k describe pod -n gpu-operator nvidia-container-toolkit-daemonset-7jp5q 
+  864  k get pods -A -w
+  865  history
+  866  k get pods -A -w
+  867  kubectl delete clusterpolicy cluster-policy --timeout=60s
+  868  kubectl delete ns gpu-operator
+  869  kubectl delete crd clusterpolicies.nvidia.com nvidiadrivers.nvidia.com
+  870  sudo rm -rf /run/nvidia/*
+  871  sudo rm -rf /var/lib/nvidia/*
+  872  sudo apt-get update
+  873  sudo apt-get install -y linux-headers-$(uname -r) build-essential
+  874  helm repo add nvidia https://helm.ngc.nvidia.com/nvidia || true
+  875  helm repo update
+  876  cd slinky-installation-v2/
+  877  ll
+  878  vi 2_11 
+  879  vi  2_11 
+  880  source 2_11 
+  881  k get pods -n gpu-operator -w
+  882  k describe pod -n gpu-operator nvidia-driver-daemonset-sf5fv 
+  883  ll
+  884  vi 2_11 
+  885  source 2_11 
+  886  history
+  887  kubectl delete ns gpu-operator
+  888  kubectl delete crd clusterpolicies.nvidia.com nvidiadrivers.nvidia.com
+  889  source 2_11 
+  890  k get pods -n gpu-operator -w
+  891  k describe pod -n gpu-operator nvidia-driver-daemonset-88q5k 
+  892  history
+  893  kubectl delete clusterpolicy cluster-policy --timeout=60s
+  894  kubectl delete ns gpu-operator
+  895  kubectl delete crd clusterpolicies.nvidia.com nvidiadrivers.nvidia.com
+  896  source 2_11 
+  897  k get pods -n gpu-operator -w
+  898  k describe pod -n gpu-operator --name nvidia-driver-daemonset
+  899  vi 2_11 
+  900  source 2_11 
+  901  kubectl delete clusterpolicy cluster-policy --timeout=60s; kubectl delete ns gpu-operator; kubectl delete crd clusterpolicies.nvidia.com nvidiadrivers.nvidia.com; source 2_11 ; k get pods -n gpu-operator -w
+  902  vi 2_11 
+  903  kubectl delete clusterpolicy cluster-policy --timeout=60s; kubectl delete ns gpu-operator; kubectl delete crd clusterpolicies.nvidia.com nvidiadrivers.nvidia.com; source 2_11 ; k get pods -n gpu-operator -w
+  904  k get pods -A 
+  905  k describe pod -n gpu-operator gpu-feature-discovery-s9bqc 
+  906  vi /etc/containerd/config.toml
+  907  grep nvidia /etc/containerd/config.toml
+  908  sudo nvidia-ctk runtime configure --runtime=containerd
+  909  nvidia-ctk runtime configure --runtime=containerd
+  910  ll
+  911  grep containerd *
+  912  vi 0_02 
+  913  source 0_02 
+  914  source 2_01 
+  915  grep ctk *
+  916  vi 2_01 
+  917  ll
+  918  vi 1_03 
+  919  vi 1_02
+  920  vi 1_01 
+  921  vi 0_02 
+  922  grep nvidia-container *
+  923  grep nvidia *
+  924  history | grep "apt install nvidia"
+  925  history | grep "nvidia"
+  926  history
+  927  ll
+  928  vi 4_02
+  929  vi 0_01
+  930  vi 0_02
+  931  source 0_02
+  932  sudo nvidia-ctk runtime configure --runtime=containerd
+  933  sudo systemctl restart containerd
+  934  kubectl get pods -n gpu-operator
+  935  k describe pod -n gpu-operator nvidia-cuda-validator-qvzq2 
+  936  kubectl logs -n gpu-operator -l app=nvidia-driver-daemonset --tail=20
+  937  nvidia-smi
+  938  k get pods -A
+  939  lsmod | grep nvidia
+  940  sudo nvidia-ctk config --set nvidia-container-cli.load-kmod=false --in-place
+  941  sudo nvidia-ctk config --set nvidia-container-runtime.mode=cdi --in-place
+  942  kubectl delete pod -n gpu-operator -l app=nvidia-container-toolkit-daemonset
+  943  sudo systemctl restart containerd
+  944  k get pods -A
+  945  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52 
+  946  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52  ; k get pods -A
+  947  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52  ; k get pods -n gpu-operator 
+  948  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52 --tail=10 ; k get pods -n gpu-operator 
+  949  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52 | tail -10 ; k get pods -n gpu-operator 
+  950  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52 | tail -10 ; k describe pod -n gpu-operator nvidia-operator-validator-7pmvj | tail -10 ;  k get pods -n gpu-operator 
+  951  kubectl logs -n gpu-operator nvidia-cuda-validator-kvm52 -c cuda-validation
+  952  kubectl logs -n gpu-operator nvidia-cuda-validator-rbp45 -c cuda-validation
+  953  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52 | tail -10 ; k describe pod -n gpu-operator nvidia-operator-validator-7pmvj | tail -10 ;  k get pods -n gpu-operator 
+  954  sudo nvidia-ctk config --set nvidia-container-cli.load-kmod=false --in-place
+  955  sudo nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.json --driver-root=/run/nvidia/driver
+  956  ls -l /var/run/cdi/nvidia.json
+  957  sudo systemctl restart containerd
+  958  kubectl delete pod -n gpu-operator -l app=nvidia-cuda-validator
+  959  kubectl delete pod -n gpu-operator nvidia-operator-validator-7pmvj
+  960  k get pods -A
+  961  k describe pod -n gpu-operator nvidia-cuda-validator-kvm52 | tail -10 ; k describe pod -n gpu-operator nvidia-operator-validator-7pmvj | tail -10 ;  k get pods -n gpu-operator 
+  962  k describe pod -n gpu-operator nvidia-cuda-validator-jl67w | tail -10 ; k describe pod -n gpu-operator nvidia-operator-validator-lhlgz | tail -10 ;  k get pods -n gpu-operator 
+  963  kubectl describe node radclustn02
+  964  kubectl get pods -n gpu-operator | grep validator
+  965  k describe pod -n gpu-operator nvidia-cuda-validator-jl67w 
+  966  kubectl logs -n gpu-operator nvidia-cuda-validator-jl67w -c cuda-validation
+  967  kubectl logs -n gpu-operator nvidia-cuda-validator-25bxt -c cuda-validation
+  968  kubectl logs -n gpu-operator nvidia-cuda-validator-25bxt -c cuda-validation ; k get pods -n gpu-operator 
+  969  sudo nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.json --driver-root=/run/nvidia/driver --force
+  970  sudo nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.json --driver-root=/run/nvidia/driver
+  971  sudo systemctl restart containerd
+  972  k get pods -A
+  973  k describe pod -n gpu-operator nvidia-operator-validator-lhlgz 
+  974  ls -l /dev/nvidia*
+  975  sudo dmesg | grep -i gsp
+  976  sudo nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.json --driver-root=/run/nvidia/driver --force
+  977  sudo nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.json --driver-root=/run/nvidia/driver 
+  978  grep "nvidia-uvm" /var/run/cdi/nvidia.json
+  979  sudo systemctl restart containerd
+  980  kubectl delete pod -n gpu-operator nvidia-operator-validator-lhlgz
+  981  k get pods -n gpu-operator -w
+  982  k describe pod -n gpu-operator nvidia-cuda-validator-286x8 -c cuda-validation
+  983  k describe pod -n gpu-operator nvidia-operator-validator-tw246 -c cuda-validation
+  984  dmesg | grep -i gsp
+  985  cat /proc/driver/nvidia/gpus/0000:*/information
+  986  kubectl logs -n gpu-operator -l app=nvidia-operator-validator -c cuda-validation
+  987  k get pods -n gpu-operator -w
+  988  kubectl logs -n gpu-operator -l app=nvidia-cuda-validator -c cuda-validation
+  989  cat /var/log/pods/gpu-operator_*/*/*.log
+  990  ll /var/log/pods/gpu-operator_nvidia-cuda-validator-286x8_88d5c87f-92cb-438f-8dbe-4d09e5319e5e/
+  991  ll /var/log/pods/gpu-operator_nvidia-cuda-validator-286x8_88d5c87f-92cb-438f-8dbe-4d09e5319e5e/cuda-validation/
+  992  cat /var/log/pods/gpu-operator_nvidia-cuda-validator-286x8_88d5c87f-92cb-438f-8dbe-4d09e5319e5e/cuda-validation/4.log
+  993  ll /var/log/pods/gpu-operator_nvidia-operator-validator-tw246_e06b73bb-14ee-4593-8975-76f7f7f4712c/
+  994  ll /var/log/pods/gpu-operator_nvidia-operator-validator-tw246_e06b73bb-14ee-4593-8975-76f7f7f4712c/cuda-validation/
+  995  cat /var/log/pods/gpu-operator_nvidia-operator-validator-tw246_e06b73bb-14ee-4593-8975-76f7f7f4712c/cuda-validation/0.log 
+  996  cat /var/log/pods/gpu-operator_nvidia-operator-validator-tw246_e06b73bb-14ee-4593-8975-76f7f7f4712c/*/*.log
+  997  kubectl get nodes -o custom-columns=NAME:.metadata.name,GPU_CAPACITY:.status.capacity.'nvidia\.com/gpu',GPU_ALLOCATABLE:.status.allocatable.'nvidia\.com/gpu'
+  998  okutil --sb-state
+  999  mokutil --sb-state
+ 1000  dmesg | grep -i lockdown
+ 1001  kubectl label nodes -l nvidia.com/gpu.present=true nvidia.com/gpu.deploy.operator-validator=false --overwrite
+ 1002  k get pods -n gpu-operator 
+ 1003  k delete pod -n gpu-operator nvidia-cuda-validator-l5twl 
+ 1004  k get pods -n gpu-operator 
+ 1005  k get pods -n gpu-operator -w
+ 1006  sudo dmesg | grep -i NVRM
+ 1007  k get pods -n gpu-operator 
+ 1008  ll
+ 1009  grep operator *
+ 1010  grep device *
+ 1011  vi 2_02 
+ 1012  ll
+ 1013  vi 2_03 
+ 1014  vi 2_02 
+ 1015  rm 2_02 
+ 1016  mv 2_03 2_02
+ 1017  ll
+ 1018  vi 0_02 
+ 1019  vi 1_01
+ 1020  grep ctk *
+ 1021  vi 2_01 
+ 1022  history | grep ctk
+ 1023  history
+ 1024  vi 4_03
+ 1025  source 4_03
+ 1026  k get pod -A
+ 1027  ll
+ 1028  ll upgrade-kubeadm/
+ 1029  ll
+ 1030  cd ..
+ 1031  ll
+ 1032  cat new-cluster.yaml-4
+ 1033  rm new-cluster.yaml*
+ 1034  ll
+ 1035  mv slinky-installation-v2/ /home/ubuntu/
+ 1036  exit
+ 1037  cd slinky-installation-v2/
+ 1038  ll
+ 1039  vi 4_01-restart 
+ 1040  source 4_01-restart 
+ 1041  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-controllers | tail -n 10
+ 1042  ll
+ 1043  vi job-slinky.yaml 
+ 1044  vi job-k8.yaml 
+ 1045  vi job-slinky.yaml 
+ 1046  source job-slinky.yaml 
+ 1047  k get pods -A
+ 1048  kubectl get pod final-boss-job -w
+ 1049  kubectl logs final-boss-job
+ 1050  k describe pod final-boss-job 
+ 1051  kubectl logs final-boss-job
+ 1052  kubectl get pod final-boss-job -w
+ 1053  k get pods -A
+ 1054  kubectl rollout restart deployment -n slinky slurm-bridge-scheduler
+ 1055  k get pods -A
+ 1056  kubectl delete -f final-job.yaml
+ 1057  ll
+ 1058  k delete pod final-boss-job 
+ 1059  k get pods -A
+ 1060  cat job-slinky.yaml 
+ 1061  source job-slinky.yaml 
+ 1062  k get pods -A
+ 1063  k get pods 
+ 1064  k describe pod final-boss-job 
+ 1065  k get pods 
+ 1066  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- squeue
+ 1067  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- sinfo -Nel
+ 1068  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-scheduler | tail -n 20
+ 1069  kubectl logs -n slinky -l app.kubernetes.io/name=slurm-bridge-scheduler | tail -n 40
+ 1070  k get pods -A
+ 1071  kubectl delete -f final-job.yaml
+ 1072  k describe pod final-boss-job 
+ 1073  kubectl delete pod final-boss-job --ignore-not-found
+ 1074  vi job-slinky.yaml 
+ 1075  source job-slinky.yaml 
+ 1076  k get pods
+ 1077  k describe pod final-boss-job 
+ 1078  k delete pod final-boss-job 
+ 1079  kubectl rollout restart deployment -n slinky
+ 1080  k get pods -n slinky
+ 1081  k get pods -n slinky,slum
+ 1082  k get pods -n slinky,slurm
+ 1083  k get pods -n slurm
+ 1084  kubectl rollout restart deployment -n slurm
+ 1085  k get pods -n slurm
+ 1086  k get pods -A
+ 1087  source job-slinky.yaml 
+ 1088  k get pods 
+ 1089  k describe pod final-boss-job 
+ 1090  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- squeue
+ 1091  kubectl get pod final-boss-job -w
+ 1092  ll /var/log/pods/
+ 1093  ll
+ 1094  mkdir upgrade-kubeadm
+ 1095  cd upgrade-kubeadm/
+ 1096  vi 10_01
+ 1097  source 10_01 
+ 1098  vi 10_02
+ 1099  source 10_02
+ 1100  kubeadm version
+ 1101  vi 10_02
+ 1102  vi 10_03
+ 1103  source 10_03
+ 1104  vi 20_01
+ 1105  source 20_01
+ 1106  kubectl get nodes
+ 1107  cd ..
+ 1108  ll
+ 1109  cd upgrade-kubeadm/
+ 1110  ll
+ 1111  vi 30_01
+ 1112  source 30_01 
+ 1113  kubectl delete pod final-boss-job --ignore-not-found
+ 1114  k get pods -A -w
+ 1115  ll
+ 1116  cd ..
+ 1117  ll
+ 1118  source job-slinky.yaml 
+ 1119  k get pods
+ 1120  k describe pod final-boss-job 
+ 1121  k get pods
+ 1122  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- squeue
+ 1123  vi job-slinky.yaml 
+ 1124  k delete pod final-boss-job 
+ 1125  source job-slinky.yaml 
+ 1126  k get pods
+ 1127  k describe pod final-boss-job 
+ 1128  kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- squeue
+ 1129  k describe pod final-boss-job 
+ 1130  k delete pod final-boss-job 
+ 1131  vi job-slinky.yaml 
+ 1132  source job-slinky.yaml 
+ 1133  k get pods
+ 1134  k describe pod final-boss-job 
+ 1135  k describe nodes
+ 1136  k delete pod final-boss-job 
+ 1137  vi job-slinky.yaml 
+ 1138  source job-slinky.yaml 
+ 1139  k get pods
+ 1140  k describe pod final-boss-job 
+ 1141  k get pods
+ 1142  k describe nodes
+ 1143  k get pods
+ 1144  kubectl label node radclustn02 slinky.slurm.net/slurm-nodename=slinky-0 --overwrite
+ 1145  k get pods
+ 1146  k describe nodes
+ 1147  k get pods
+ 1148  k delete pod final-boss-job 
+ 1149  vi job-slinky.yaml 
+ 1150  source job-slinky.yaml 
+ 1151  k get pods -A
+ 1152  k describe pod -n slinky slurm-bridge-admission-6cbc677744-8jxtx 
+ 1153  kubectl get nodes
+ 1154  kubectl taint nodes radclustn02 slinky.slurm.net/managed-node-
+ 1155  kubectl get pods -A -w
+ 1156  kubectl get pods -A 
+ 1157  k describe pod -n slurm slurm-controller-0 
+ 1158  kubectl get pods -A 
+ 1159  k describe pod -n slurm slurm-controller-0 
+ 1160  kubectl delete secret -n slurm slurm-auth-slurm --ignore-not-found
+ 1161  ll
+ 1162  vi _applyfix_restart_ 
+ 1163  source _applyfix_restart_ 
+ 1164  k get pods -A
+ 1165  k describe pod -n slurm slurm-restapi-6b4ccb479f-ths59 
+ 1166  # 1. Ensure the corrupted secret is completely gone
+ 1167  kubectl delete secret -n slurm slurm-auth-slurm --ignore-not-found
+ 1168  # 2. Generate a mathematically secure 32-byte random key
+ 1169  dd if=/dev/urandom bs=32 count=1 > slurm.key
+ 1170  # 3. Create the secret exactly how Slurm expects it
+ 1171  kubectl create secret generic slurm-auth-slurm -n slurm --from-file=slurm.key=slurm.key
+ 1172  # 4. Clean up the local file
+ 1173  rm slurm.key
+ 1174  k get pods -A
+ 1175  kubectl get configmap slurm-bridge-config -n slinky -o yaml | sed 's/manageNodeTaints: true/manageNodeTaints: false/g' | kubectl apply -f -
+ 1176  kubectl rollout restart deployment -n slinky slurm-bridge-controllers
+ 1177  kubectl taint nodes radclustn02 slinky.slurm.net/managed-node-
+ 1178  kubectl get pods -A -w
+ 1179  kubectl get pods -A 
+ 1180  k describe pod -n slurm slurm-worker-slinky-0 
+ 1181  k describe nodes
+ 1182  ll
+ 1183  k get pods -A
+ 1184  k describe pod -n gpu-operator gpu-feature-discovery-55twn 
+ 1185  sudo systemctl daemon-reload
+ 1186  sudo systemctl restart containerd
+ 1187  sudo systemctl restart kubelet
+ 1188  sudo ls -la /var/run/containerd/containerd.sock
+ 1189  kubectl delete pod -n gpu-operator -l app=nvidia-container-toolkit-daemonset
+ 1190  sleep 15
+ 1191  sudo systemctl restart containerd
+ 1192  kubectl get pods -n gpu-operator -w
+ 1193  kubectl get pods -A
+ 1194  vi job-slinky.yaml 
+ 1195  source job-slinky.yaml 
+ 1196  cat job-slinky.yaml 
+ 1197  kubectl get pods -n slinky -l app.kubernetes.io/component=admission
+ 1198  kubectl get pods -A
+ 1199  kubectl get configmap slurm-bridge-config -n slinky -o yaml | sed 's/manageNodeTaints: true/manageNodeTaints: false/g' | kubectl apply -f -
+ 1200  kubectl rollout restart deployment -n slinky slurm-bridge-controllers
+ 1201  kubectl taint nodes radclustn02 slinky.slurm.net/managed-node-
+ 1202  kubectl get pods -A
+ 1203  kubectl get pods -n gpu-operator -w
+ 1204  kubectl get pods -n gpu-operator 
+ 1205  k describe pod -n gpu-operator gpu-feature-discovery-45jf7 
+ 1206  kubectl get pods -n gpu-operator 
+ 1207  kubectl get pods -A
+ 1208  history | grep label
+ 1209  kubectl label node radclustn02 slinky.slurm.net/slurm-nodename-
+ 1210  kubectl get pods -A
+ 1211  history | grep label
+ 1212  kubectl get pods -A
+ 1213  history | grep label
+ 1214  kubectl get pods -A
+ 1215  history | grep label
+ 1216  # Force remove the taint one more time to be safe
+ 1217  kubectl taint nodes radclustn02 slinky.slurm.net/managed-node- --ignore-not-found
+ 1218  kubectl taint nodes radclustn02 slinky.slurm.net/managed-node- 
+ 1219  kubectl describe node radclustn02 | grep -E "Labels|Taints"
+ 1220  kubectl describe node radclustn02 | grep -E "Labels|Taints" -A20
+ 1221  kubectl get pods -A
+ 1222  sudo systemctl daemon-reload
+ 1223  sudo systemctl restart containerd
+ 1224  sudo systemctl restart kubelet
+ 1225  sudo ls -la /var/run/containerd/containerd.sock
+ 1226  # 1. Delete the toolkit pod to force it to re-run its configuration script
+ 1227  kubectl delete pod -n gpu-operator -l app=nvidia-container-toolkit-daemonset
+ 1228  # 2. Wait 10 seconds, then restart containerd ONE MORE TIME 
+ 1229  # (This is required because the toolkit pod edits the config file on disk, 
+ 1230  # but containerd needs a restart to read the new 'nvidia' runtime entry).
+ 1231  sleep 15
+ 1232  sudo systemctl restart containerd
+ 1233  kubectl get pods -A
+ 1234  k describe pod -n gpu-operator gpu-feature-discovery-2z2lt 
+ 1235  # Delete the toolkit pod so it restarts and re-runs its setup script
+ 1236  kubectl delete pod -n gpu-operator -l app=nvidia-container-toolkit-daemonset
+ 1237  sleep 20 ; sudo systemctl restart containerd
+ 1238  sudo grep -i nvidia /etc/containerd/config.toml
+ 1239  sudo nvidia-container-toolkit runtime configure --runtime=containerd
+ 1240  kubectl get pods -A
+ 1241  nvidia-ctk --version
+ 1242  curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg   && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list |     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' |     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+ 1243  sudo apt-get update
+ 1244  sudo apt-get install -y nvidia-container-toolkit
+ 1245  sudo apt-get update && sudo apt-get install -y --no-install-recommends    ca-certificates    curl    gnupg2
+ 1246  curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg   && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list |     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' |     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+ 1247  sudo apt-get update
+ 1248  which nvidia-container-runtime-hook 
+ 1249  /usr/bin/nvidia-container-runtime-hook --version
+ 1250  which nvidia-ctk
+ 1251  /usr/bin/nvidia-ctk runtime configure --runtime=containerd
+ 1252  /usr/bin/nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+ 1253  grep "imports" /etc/containerd/config.toml
+ 1254  cat /etc/containerd/conf.d/99-nvidia.toml
+ 1255  k get pods -A
+ 1256  kubectl delete pods -n gpu-operator --all
+ 1257  kubectl get pods -n gpu-operator -w
+ 1258  kubectl get pods -n gpu-operator 
+ 1259  grep "default_runtime_name" /etc/containerd/config.toml
+ 1260  sudo /usr/bin/nvidia-ctk runtime configure --runtime=containerd --set-as-default
+ 1261  grep "default_runtime_name" /etc/containerd/config.toml
+ 1262  vi /etc/docker/daemon.json
+ 1263  nvidia-ctk runtime configure --runtime=containerd
+ 1264  sudo systemctl restart containerd
+ 1265  grep "default_runtime_name" /etc/containerd/config.toml
+ 1266  vi /etc/containerd/config.toml
+ 1267  sudo systemctl restart containerd
+ 1268  grep "default_runtime_name" /etc/containerd/config.toml
+ 1269  k get pods -A
+ 1270  ll
+ 1271  cat job-slinky.yaml 
+ 1272  ll
+ 1273  k get pods -A
+ 1274  source job-slinky.yaml 
+ 1275  k get pods -A
+ 1276  k describe pod final-boss-job 
+ 1277  k get pods -A
+ 1278  ll
+ 1279  vi _applyfix_restart_ 
+ 1280  ll
+ 1281  exit
+ 1282  k get pods -A
+ 1283  k exec -it -n slurm slurm-worker-slinky-0 -- sinfo
+ 1284  k exec -it -n slurm slurm-worker-slinky-0 -- srun -n 1 nvidia-smi
+ 1285  history 2000 > /home/ubuntu/histfile_commands ; chown ubuntu:ubuntu /home/ubuntu/histfile_commands

@@ -1,0 +1,366 @@
+#!/usr/bin/env -S ansible-playbook -vv
+---
+# Phase 07 — SLINKY deployment
+# Components: slurm-operator v1.0.3, slurm v1.0.3, slurm-bridge v1.0.3
+# Versions: slurm-operator/slurm >= k8s 1.29; slurm-bridge requires k8s 1.34 (must stay 1.0.3)
+# Steps: prereqs → operator → slurm-cluster → slurm-bridge → verify
+
+- name: "07-1 | Prerequisites — storage class and cert-manager cleanup"
+  hosts: control_plane
+  gather_facts: false
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Install local-path-provisioner (StorageClass for slurmctld PVC)
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }} apply -f
+        https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy/local-path-storage.yaml
+      register: lpp_out
+      changed_when: "'created' in lpp_out.stdout or 'configured' in lpp_out.stdout"
+
+    - name: Mark local-path as default StorageClass
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }} patch storageclass local-path
+        -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+      register: sc_patch
+      changed_when: "'no change' not in sc_patch.stdout"
+
+    - name: Delete evicted cert-manager pods
+      ansible.builtin.shell: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        delete pods -n cert-manager --field-selector=status.phase=Failed
+        --ignore-not-found 2>&1 || true
+      changed_when: false
+
+    - name: Confirm default StorageClass is set
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get storageclass"
+      register: sc_out
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ sc_out.stdout_lines }}"
+
+
+- name: "07-2 | SLINKY operator — CRDs and controller"
+  hosts: control_plane
+  gather_facts: false
+  environment:
+    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Install slurm-operator-crds v1.0.3
+      ansible.builtin.command: >
+        helm upgrade --install slurm-operator-crds
+        oci://ghcr.io/slinkyproject/charts/slurm-operator-crds
+        --version 1.0.3
+      register: crds_out
+      changed_when: "'already up-to-date' not in crds_out.stdout"
+
+    - name: Install slurm-operator v1.0.3
+      ansible.builtin.command: >
+        helm upgrade --install slurm-operator
+        oci://ghcr.io/slinkyproject/charts/slurm-operator
+        --version 1.0.3
+        --namespace slinky --create-namespace
+        --wait --timeout 3m
+      register: op_out
+      changed_when: "'already up-to-date' not in op_out.stdout"
+
+    - name: Verify slurm-operator is running
+      ansible.builtin.command: >
+        /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml
+        get pods -n slinky -l app.kubernetes.io/name=slurm-operator
+      register: op_pods
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ op_pods.stdout_lines }}"
+
+
+- name: "07-3 | SLURM cluster — controller, workers, login node"
+  hosts: control_plane
+  gather_facts: false
+  environment:
+    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Write slurm-values.yaml
+      ansible.builtin.copy:
+        dest: /tmp/slurm-values.yaml
+        mode: '0644'
+        content: |
+          clusterName: mzcluster
+
+          # slurmctld — pin to CP, 2Gi PVC via local-path
+          controller:
+            persistence:
+              enabled: true
+              storageClassName: local-path
+              resources:
+                requests:
+                  storage: 2Gi
+            podSpec:
+              nodeSelector:
+                kubernetes.io/hostname: mzcl01-cp
+
+          # REST API — pin to CP
+          restapi:
+            podSpec:
+              nodeSelector:
+                kubernetes.io/hostname: mzcl01-cp
+
+          # Single "slinky" nodeset (default sample — all required fields already present)
+          # replicas=3, spread across worker nodes only via anti-affinity
+          nodesets:
+            slinky:
+              enabled: true
+              replicas: 3
+              slurmd:
+                resources:
+                  requests:
+                    cpu: "500m"
+                    memory: "512Mi"
+                  limits:
+                    cpu: "1"
+                    memory: "1400Mi"
+              # Restrict to worker nodes only
+              nodeSelector:
+                kubernetes.io/os: linux
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                      - matchExpressions:
+                          - key: kubernetes.io/hostname
+                            operator: In
+                            values:
+                              - mzcl01-w1
+                              - mzcl01-w2
+                              - mzcl01-w3
+                podAntiAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    - labelSelector:
+                        matchLabels:
+                          app.kubernetes.io/component: slurmd
+                      topologyKey: kubernetes.io/hostname
+
+          # Login node — use default "slinky" loginset, enable and pin to sllogin1
+          loginsets:
+            slinky:
+              enabled: true
+              replicas: 1
+              podSpec:
+                nodeSelector:
+                  kubernetes.io/hostname: mzcl01-sllogin1
+                tolerations:
+                  - key: dedicated
+                    value: slurm-login
+                    effect: NoSchedule
+              rootSshAuthorizedKeys: |
+                ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEPSplMlKepcswj/HuMjxry0eLAmefNS9oRaj6D+riSU marcinzielinski@Marcins-MacBook-Pro.local
+              service:
+                spec:
+                  type: NodePort
+                nodePort: 30022
+
+    - name: Install SLURM cluster v1.0.3
+      ansible.builtin.command: >
+        helm upgrade --install slurm
+        oci://ghcr.io/slinkyproject/charts/slurm
+        --version 1.0.3
+        --namespace slurm --create-namespace
+        -f /tmp/slurm-values.yaml
+        --wait --timeout 10m
+      register: slurm_out
+      changed_when: "'already up-to-date' not in slurm_out.stdout"
+
+    - ansible.builtin.debug:
+        msg: "{{ slurm_out.stdout_lines }}"
+
+    - name: Show all SLURM pods
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get pods -n slurm -o wide"
+      register: slurm_pods
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ slurm_pods.stdout_lines }}"
+
+    - name: Check sinfo — all nodes visible to SLURM
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        exec -n slurm slurm-controller-0 -c slurmctld -- sinfo
+      register: sinfo_out
+      changed_when: false
+      retries: 6
+      delay: 10
+      until: sinfo_out.rc == 0
+
+    - ansible.builtin.debug:
+        msg: "{{ sinfo_out.stdout_lines }}"
+
+
+- name: "07-4 | slurm-bridge — JWT auth, install, node labels"
+  hosts: control_plane
+  gather_facts: false
+  environment:
+    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Generate SLURM JWT token (1-year lifespan)
+      ansible.builtin.shell: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        exec -n slurm slurm-controller-0 -c slurmctld --
+        scontrol token username=slurm lifespan=31536000
+        | cut -d'=' -f2 | tr -d '[:space:]'
+      register: slurm_jwt
+      changed_when: false
+      no_log: true
+
+    - name: Delete existing slurm-bridge-token secret (if any)
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        delete secret slurm-bridge-token -n slinky --ignore-not-found
+      changed_when: true
+
+    - name: Create slurm-bridge-token secret
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        create secret generic slurm-bridge-token -n slinky
+        --from-literal=auth-token={{ slurm_jwt.stdout }}
+      changed_when: true
+      no_log: true
+
+    - name: Install slurm-bridge v1.0.3
+      ansible.builtin.command: >
+        helm upgrade --install slurm-bridge
+        oci://ghcr.io/slinkyproject/charts/slurm-bridge
+        --version 1.0.3
+        --namespace slinky
+        --wait --timeout 5m
+      register: bridge_out
+      changed_when: "'already up-to-date' not in bridge_out.stdout"
+
+    - ansible.builtin.debug:
+        msg: "{{ bridge_out.stdout_lines }}"
+
+    - name: Get slurmd pod placements (pod → K8s node)
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get pods -n slurm -l app.kubernetes.io/component=slurmd
+        -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.nodeName}{"\n"}{end}'
+      register: pod_placements
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "slurmd placements: {{ pod_placements.stdout_lines }}"
+
+    - name: Label K8s nodes with SLURM node names derived from pod placement
+      # Pod name "slurm-worker-slinky-0" → SLURM name "slinky-0" (strip "slurm-worker-" prefix)
+      ansible.builtin.shell: |
+        set -e
+        KUBE="{{ kube }} --kubeconfig {{ kubeconfig }}"
+        while IFS=' ' read -r pod node; do
+          [ -z "$pod" ] && continue
+          slurm_name="${pod#slurm-worker-}"
+          echo "Labeling $node with slurm node $slurm_name"
+          $KUBE label node "$node" slurm.v1.slinky.io/node-name="$slurm_name" --overwrite
+          $KUBE label node "$node" slurm.v1.slinky.io/partition=all --overwrite
+        done <<< "{{ pod_placements.stdout }}"
+      changed_when: true
+
+    - name: Show slinky namespace pods
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get pods -n slinky -o wide"
+      register: slinky_pods
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ slinky_pods.stdout_lines }}"
+
+
+- name: "07-5 | Verification — sinfo, slurm-bridge test pod"
+  hosts: control_plane
+  gather_facts: false
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: sinfo — check all nodes are idle/known
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        exec -n slurm slurm-controller-0 -c slurmctld -- sinfo -l
+      register: sinfo_final
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ sinfo_final.stdout_lines }}"
+
+    - name: Submit test job via srun (native SLURM path)
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        exec -n slurm slurm-controller-0 -c slurmctld --
+        srun --nodes=1 --ntasks=1 hostname
+      register: srun_out
+      changed_when: false
+      ignore_errors: true
+
+    - ansible.builtin.debug:
+        msg: "srun test: {{ srun_out.stdout | default(srun_out.stderr) }}"
+
+    - name: Deploy slurm-bridge test pod (K8s → SLURM path)
+      ansible.builtin.command:
+        argv:
+          - /var/lib/rancher/rke2/bin/kubectl
+          - --kubeconfig
+          - /etc/rancher/rke2/rke2.yaml
+          - apply
+          - -f
+          - -
+          - --stdin
+        stdin: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: slinky-bridge-test
+            namespace: default
+          spec:
+            schedulerName: slurm-bridge
+            restartPolicy: Never
+            containers:
+            - name: test
+              image: busybox:1.36
+              command: ["sh", "-c", "echo SLURM-scheduled pod on $(hostname) && sleep 5"]
+              resources:
+                requests:
+                  cpu: "500m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "256Mi"
+      register: test_pod
+      failed_when: test_pod.rc != 0 and 'already exists' not in test_pod.stderr
+      changed_when: test_pod.rc == 0
+
+    - ansible.builtin.debug:
+        msg: "Bridge test pod: {{ test_pod.stdout }}"
+
+    - name: Show login node pod
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get pods -n slurm -l app.kubernetes.io/component=login -o wide
+      register: login_pod
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "Login node: {{ login_pod.stdout_lines }}"
+
+    - name: Final — show all SLURM and SLINKY pods
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get pods -A -l app.kubernetes.io/managed-by=slurm-operator -o wide"
+      register: all_slinky
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ all_slinky.stdout_lines }}"

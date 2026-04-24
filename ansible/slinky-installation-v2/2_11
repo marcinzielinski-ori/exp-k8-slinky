@@ -1,0 +1,17 @@
+!737
+!738
+!739
+# 1. Remove the broken repo just to be clean
+helm repo remove nvidia 2>/dev/null
+
+# 2. Add the correct official NVIDIA NGC Helm repository
+helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
+
+# 3. Update Helm to fetch the charts
+helm repo update
+
+# 4. Install the GPU Operator (with the containerd fix)
+helm install gpu-operator nvidia/gpu-operator \
+  -n gpu-operator --create-namespace \
+  --set toolkit.env[0].name=CONTAINERD_CONFIG \
+  --set toolkit.env[0].value=/etc/containerd/config.toml

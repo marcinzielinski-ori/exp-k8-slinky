@@ -1,0 +1,12 @@
+#!/bin/bash
+
+
+
+RAW_TOKEN=$(kubectl exec -n slurm slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=31536000 | cut -d'=' -f2)
+CLEAN_TOKEN=$(echo "$RAW_TOKEN" | tr -d '[:space:]')
+#echo $CLEAN_TOKEN ; [ -z "$CLEAN_TOKEN" ] && exit 1
+
+kubectl delete secret -n slinky slurm-bridge-token --ignore-not-found
+kubectl create secret generic slurm-bridge-token -n slinky --from-literal=auth-token="$CLEAN_TOKEN"
+
+kubectl rollout restart deployment -n slinky slurm-bridge-controllers

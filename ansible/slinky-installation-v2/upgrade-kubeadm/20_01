@@ -1,0 +1,14 @@
+# Drain the node safely just in case (optional but recommended)
+kubectl drain radclustn02 --ignore-daemonsets
+
+# Upgrade the binaries
+sudo apt-mark unhold kubelet kubectl
+sudo apt-get install -y kubelet kubectl
+sudo apt-mark hold kubelet kubectl
+
+# Restart the local worker agent
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+# Uncordon the node to allow workloads back on
+kubectl uncordon radclustn02

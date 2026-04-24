@@ -1,0 +1,153 @@
+#!/usr/bin/env -S ansible-playbook -vv
+---
+# Phase 06 — Cluster Verification (runs on the control plane VM)
+# Steps: connectivity → nodes → system-pods → cert-manager → rancher → network-test
+
+- name: "06-1 | Cluster connectivity and node status"
+  hosts: control_plane
+  gather_facts: false
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Verify API server reachable
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} cluster-info"
+      changed_when: false
+
+    - name: Get all nodes
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get nodes -o wide"
+      register: nodes_out
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ nodes_out.stdout_lines }}"
+
+    - name: Assert each expected node is Ready
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }} get node {{ item }}
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      register: node_ready
+      failed_when: node_ready.stdout != 'True'
+      loop: [mzcl01-cp, mzcl01-w1, mzcl01-w2]
+      changed_when: false
+
+
+- name: "06-2 | System pods and storage"
+  hosts: control_plane
+  gather_facts: false
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Get kube-system pods
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get pods -n kube-system -o wide"
+      register: syspods
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ syspods.stdout_lines }}"
+
+    - name: Fail if any kube-system pod is not Running/Completed
+      ansible.builtin.shell: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get pods -n kube-system --no-headers
+        | grep -cvE 'Running|Completed' || true
+      register: bad_pods
+      failed_when: bad_pods.stdout | int > 0
+      changed_when: false
+
+    - name: Get storage classes
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get storageclass"
+      register: sc_out
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ sc_out.stdout_lines }}"
+
+
+- name: "06-3 | cert-manager and Rancher health"
+  hosts: control_plane
+  gather_facts: false
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Check cert-manager deployments ready
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get deployment {{ item }} -n cert-manager
+        -o jsonpath='{.status.readyReplicas}'
+      register: cm_ready
+      failed_when: (cm_ready.stdout | default('0', true)) | int < 1
+      loop: [cert-manager, cert-manager-webhook, cert-manager-cainjector]
+      changed_when: false
+
+    - name: Check Rancher deployment ready
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get deployment rancher -n cattle-system
+        -o jsonpath='{.status.readyReplicas}'
+      register: rancher_ready
+      failed_when: (rancher_ready.stdout | default('0', true)) | int < 1
+      changed_when: false
+
+    - name: Test Rancher HTTPS endpoint (informational — requires ingress from macOS host)
+      ansible.builtin.command: >
+        curl -sk -o /dev/null -w "%{http_code}" https://rancher.local --max-time 5
+      register: rancher_http
+      ignore_errors: true
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: >-
+          Rancher HTTP check: {{ rancher_http.stdout | default('no response') }}
+          (access https://192.168.68.134 from macOS browser, accept the self-signed cert)
+
+
+- name: "06-4 | Pod network smoke test"
+  hosts: control_plane
+  gather_facts: false
+  vars:
+    kube: /var/lib/rancher/rke2/bin/kubectl
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  tasks:
+    - name: Create test namespace
+      ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} create namespace nettest"
+      register: ns_out
+      failed_when: ns_out.rc != 0 and 'already exists' not in ns_out.stderr
+      changed_when: ns_out.rc == 0
+
+    - name: Run busybox test pod
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        run nettest --image=busybox:1.36 --restart=Never -n nettest
+        --command -- sleep 20
+      register: pod_out
+      failed_when: pod_out.rc != 0 and 'already exists' not in pod_out.stderr
+      changed_when: pod_out.rc == 0
+
+    - name: Wait for test pod to be Running
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get pod nettest -n nettest -o jsonpath='{.status.phase}'
+      register: pod_phase
+      until: pod_phase.stdout == 'Running'
+      retries: 12
+      delay: 5
+      changed_when: false
+
+    - name: Show test pod IP
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get pod nettest -n nettest -o jsonpath='{.status.podIP}'
+      register: pod_ip
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "Test pod running at {{ pod_ip.stdout }}"
+
+    - name: Clean up test namespace
+      ansible.builtin.command: >
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        delete namespace nettest --wait=false
+      changed_when: true

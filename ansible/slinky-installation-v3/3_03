@@ -1,0 +1,27 @@
+cat <<EOF > slurm-values.yaml
+slurm:
+  conf:
+    GresTypes: gpu
+  nodes:
+    - name: "slinky-0"
+      cpus: 22             # Carving out 2 for K8s
+      realMemory: 230000
+      gres: "gpu:1"
+      state: "UNKNOWN"
+  gres:
+    conf: |
+      NodeName=slinky-0 Name=gpu File=/dev/nvidia0
+slurmd:
+  env:
+    - name: SLURMD_NODENAME
+      value: "slinky-0"
+    - name: LD_LIBRARY_PATH
+      value: "/usr/local/nvidia/lib64"
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+      cpu: "22"
+      memory: "230Gi"
+EOF
+
+helm install slurm oci://ghcr.io/slinkyproject/charts/slurm --version 1.0.2 -n slurm --create-namespace -f slurm-values.yaml

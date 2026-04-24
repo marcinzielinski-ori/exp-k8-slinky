@@ -1,0 +1,5 @@
+# Let kubeadm figure out the exact patch version available
+sudo kubeadm upgrade plan
+
+# Apply the upgrade (replace v1.35.x with the exact version from the plan output, e.g., v1.35.0)
+sudo kubeadm upgrade apply v1.35.0 -y

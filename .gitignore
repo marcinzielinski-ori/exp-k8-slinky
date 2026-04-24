@@ -1,0 +1,6 @@
+# Ansible output with secrets
+ansible/output/rke2_join_vars.yml
+
+# macOS
+.DS_Store
+**/.DS_Store

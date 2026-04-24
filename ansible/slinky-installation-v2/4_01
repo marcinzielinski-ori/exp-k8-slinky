@@ -1,0 +1,7 @@
+export SLURM_JWT=$(kubectl exec -n slurm -it slurm-controller-0 -c slurmctld -- scontrol token username=slurm lifespan=infinite | awk -F= '{print $2}')
+kubectl create secret generic slurm-bridge-jwt-token -n slinky --from-literal="auth-token=$SLURM_JWT"
+
+# Create the secret with the name the chart expects
+kubectl get secret slurm-bridge-jwt-token -n slinky -o json | \
+sed 's/"name": "slurm-bridge-jwt-token"/"name": "slurm-bridge-token"/' | \
+kubectl apply -f -
