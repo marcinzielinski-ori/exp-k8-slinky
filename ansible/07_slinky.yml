@@ -9,8 +9,8 @@
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Install local-path-provisioner (StorageClass for slurmctld PVC)
       ansible.builtin.command: >
@@ -46,7 +46,7 @@
   hosts: control_plane
   gather_facts: false
   environment:
-    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+    KUBECONFIG: /etc/kubernetes/admin.conf
   tasks:
     - name: Install slurm-operator-crds v1.0.3
       ansible.builtin.command: >
@@ -68,7 +68,7 @@
 
     - name: Verify slurm-operator is running
       ansible.builtin.command: >
-        /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml
+        kubectl --kubeconfig /etc/kubernetes/admin.conf
         get pods -n slinky -l app.kubernetes.io/name=slurm-operator
       register: op_pods
       changed_when: false
@@ -81,10 +81,10 @@
   hosts: control_plane
   gather_facts: false
   environment:
-    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+    KUBECONFIG: /etc/kubernetes/admin.conf
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Write slurm-values.yaml
       ansible.builtin.copy:
@@ -205,10 +205,10 @@
   hosts: control_plane
   gather_facts: false
   environment:
-    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+    KUBECONFIG: /etc/kubernetes/admin.conf
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Generate SLURM JWT token (1-year lifespan)
       ansible.builtin.shell: >
@@ -285,8 +285,8 @@
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: sinfo — check all nodes are idle/known
       ansible.builtin.command: >
@@ -313,9 +313,9 @@
     - name: Deploy slurm-bridge test pod (K8s → SLURM path)
       ansible.builtin.command:
         argv:
-          - /var/lib/rancher/rke2/bin/kubectl
+          - kubectl
           - --kubeconfig
-          - /etc/rancher/rke2/rke2.yaml
+          - /etc/kubernetes/admin.conf
           - apply
           - -f
           - -

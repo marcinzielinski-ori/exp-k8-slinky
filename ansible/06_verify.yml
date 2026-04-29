@@ -1,14 +1,14 @@
 #!/usr/bin/env -S ansible-playbook -vv
 ---
-# Phase 06 — Cluster Verification (runs on the control plane VM)
-# Steps: connectivity → nodes → system-pods → cert-manager → rancher → network-test
+# Phase 06 — Cluster Verification
+# Steps: connectivity → nodes → system-pods → cert-manager → ingress → network-test
 
 - name: "06-1 | Cluster connectivity and node status"
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Verify API server reachable
       ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} cluster-info"
@@ -36,8 +36,8 @@
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Get kube-system pods
       ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get pods -n kube-system -o wide"
@@ -65,12 +65,12 @@
         msg: "{{ sc_out.stdout_lines }}"
 
 
-- name: "06-3 | cert-manager and Rancher health"
+- name: "06-3 | cert-manager and ingress-nginx health"
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Check cert-manager deployments ready
       ansible.builtin.command: >
@@ -82,34 +82,32 @@
       loop: [cert-manager, cert-manager-webhook, cert-manager-cainjector]
       changed_when: false
 
-    - name: Check Rancher deployment ready
+    - name: Check ingress-nginx controller ready
       ansible.builtin.command: >
         {{ kube }} --kubeconfig {{ kubeconfig }}
-        get deployment rancher -n cattle-system
+        get deployment ingress-nginx-controller -n ingress-nginx
         -o jsonpath='{.status.readyReplicas}'
-      register: rancher_ready
-      failed_when: (rancher_ready.stdout | default('0', true)) | int < 1
+      register: nginx_ready
+      failed_when: (nginx_ready.stdout | default('0', true)) | int < 1
       changed_when: false
 
-    - name: Test Rancher HTTPS endpoint (informational — requires ingress from macOS host)
+    - name: Show ingress-nginx pods
       ansible.builtin.command: >
-        curl -sk -o /dev/null -w "%{http_code}" https://rancher.local --max-time 5
-      register: rancher_http
-      ignore_errors: true
+        {{ kube }} --kubeconfig {{ kubeconfig }}
+        get pods -n ingress-nginx -o wide
+      register: nginx_pods
       changed_when: false
 
     - ansible.builtin.debug:
-        msg: >-
-          Rancher HTTP check: {{ rancher_http.stdout | default('no response') }}
-          (access https://192.168.68.134 from macOS browser, accept the self-signed cert)
+        msg: "{{ nginx_pods.stdout_lines }}"
 
 
 - name: "06-4 | Pod network smoke test"
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Create test namespace
       ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} create namespace nettest"

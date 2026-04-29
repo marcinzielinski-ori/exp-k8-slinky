@@ -241,5 +241,5 @@ ok "IPs saved to: ${IP_FILE}"
 sep
 ok "STEP 00 COMPLETE — Lima VMs deployed"
 log "Next step → run: 01_windows_multipass_vms.ps1 on Windows laptop"
-log "Then        run: 02_rke2_control_plane.sh"
+log "Then        run: 02_k8s_control_plane.sh"
 sep

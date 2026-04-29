@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # STEP 06 — macOS host: Verify full cluster health
-# Checks all nodes, system pods, Rancher, and prints a final summary.
+# Checks all nodes, system pods, cert-manager, ingress-nginx, and pod networking.
 # Safe to re-run at any time.
 # =============================================================================
 
@@ -16,7 +16,7 @@ mkdir -p "$LOGDIR"
 LOGDIR="$(cd "$LOGDIR" && pwd)"
 LOGFILE="${LOGDIR}/06_verify_cluster_$(date +%Y%m%d_%H%M%S).log"
 IPENV="$(dirname "$LOGDIR")/vm_ips.env"
-KUBECONFIG_PATH="$HOME/.kube/rke2-local.yaml"
+KUBECONFIG_PATH="$HOME/.kube/k8s-local.yaml"
 
 exec > >(tee -a "$LOGFILE") 2>&1
 
@@ -56,9 +56,9 @@ CP_IP="${IP_mzcl01_cp:-unknown}"
 
 # ── 1. Connectivity ───────────────────────────────────────────────────────
 header "1. Cluster Connectivity"
-check "kubeconfig exists" test -f "$KUBECONFIG_PATH"
+check "kubeconfig exists"    test -f "$KUBECONFIG_PATH"
 check "API server reachable" kube cluster-info
-check "kubectl version" kube version --client
+check "kubectl version"      kube version --client
 
 # ── 2. Nodes ──────────────────────────────────────────────────────────────
 header "2. Node Status"
@@ -68,17 +68,16 @@ echo ""
 EXPECTED_NODES=(mzcl01-cp mzcl01-w1 mzcl01-w2)
 for NODE in "${EXPECTED_NODES[@]}"; do
   if kube get node "$NODE" &>/dev/null; then
-    NODE_STATUS=$(kube get node "$NODE" -o jsonpath='{.status.conditions[-1].type}')
-    NODE_READY=$(kube get node "$NODE" -o jsonpath='{.status.conditions[-1].status}')
-    if [[ "$NODE_STATUS" == "Ready" && "$NODE_READY" == "True" ]]; then
+    NODE_STATUS=$(kube get node "$NODE" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+    if [[ "$NODE_STATUS" == "True" ]]; then
       ok "✔  Node $NODE — Ready"
       PASS=$((PASS+1))
     else
-      err "✘  Node $NODE — NOT Ready (status: $NODE_STATUS=$NODE_READY)"
+      err "✘  Node $NODE — NOT Ready"
       FAIL=$((FAIL+1))
     fi
   else
-    warn "⚠  Node $NODE — NOT FOUND in cluster"
+    warn "⚠  Node $NODE — NOT FOUND"
     WARN=$((WARN+1))
   fi
 done
@@ -101,14 +100,14 @@ fi
 
 # ── 4. cert-manager ───────────────────────────────────────────────────────
 header "4. cert-manager"
-kube get pods -n cert-manager -o wide 2>/dev/null || warn "cert-manager namespace not found"
+kube get pods -n cert-manager -o wide 2>/dev/null || warn "cert-manager not installed"
 echo ""
 
 for DEP in cert-manager cert-manager-webhook cert-manager-cainjector; do
   READY=$(kube get deployment "$DEP" -n cert-manager \
     -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
   if [[ "$READY" -ge 1 ]]; then
-    ok "✔  $DEP — Ready ($READY replicas)"
+    ok "✔  $DEP — Ready ($READY)"
     PASS=$((PASS+1))
   else
     err "✘  $DEP — NOT Ready"
@@ -116,30 +115,19 @@ for DEP in cert-manager cert-manager-webhook cert-manager-cainjector; do
   fi
 done
 
-# ── 5. Rancher ────────────────────────────────────────────────────────────
-header "5. Rancher"
-kube get pods -n cattle-system -o wide 2>/dev/null || warn "cattle-system namespace not found"
+# ── 5. ingress-nginx ──────────────────────────────────────────────────────
+header "5. ingress-nginx"
+kube get pods -n ingress-nginx -o wide 2>/dev/null || warn "ingress-nginx not installed"
 echo ""
 
-RANCHER_READY=$(kube get deployment rancher -n cattle-system \
+NGINX_READY=$(kube get deployment ingress-nginx-controller -n ingress-nginx \
   -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-if [[ "$RANCHER_READY" -ge 1 ]]; then
-  ok "✔  Rancher deployment Ready ($RANCHER_READY replicas)"
+if [[ "$NGINX_READY" -ge 1 ]]; then
+  ok "✔  ingress-nginx controller Ready ($NGINX_READY)"
   PASS=$((PASS+1))
 else
-  err "✘  Rancher deployment NOT Ready"
+  err "✘  ingress-nginx controller NOT Ready"
   FAIL=$((FAIL+1))
-fi
-
-# Test Rancher HTTPS
-RANCHER_HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" \
-  "https://rancher.local" --max-time 5 2>/dev/null || echo "000")
-if [[ "$RANCHER_HTTP_CODE" =~ ^(200|301|302)$ ]]; then
-  ok "✔  Rancher UI responding (HTTP $RANCHER_HTTP_CODE)"
-  PASS=$((PASS+1))
-else
-  warn "⚠  Rancher UI HTTP check returned: $RANCHER_HTTP_CODE"
-  WARN=$((WARN+1))
 fi
 
 # ── 6. Storage ────────────────────────────────────────────────────────────
@@ -154,35 +142,26 @@ else
   warn "limactl not found"
 fi
 
-# ── 8. Network connectivity between nodes ─────────────────────────────────
+# ── 8. Pod network smoke test ─────────────────────────────────────────────
 header "8. Cross-node Pod Networking"
-log "Deploying test pod to verify pod networking..."
-
 TEST_NS="verify-network-$(date +%s)"
 kube create namespace "$TEST_NS" &>/dev/null
-
 kube run nettest --image=busybox:1.36 --restart=Never -n "$TEST_NS" \
   --command -- sleep 30 &>/dev/null || true
-
 sleep 5
-
-POD_IP=$(kube get pod nettest -n "$TEST_NS" \
-  -o jsonpath='{.status.podIP}' 2>/dev/null || echo "")
 POD_STATUS=$(kube get pod nettest -n "$TEST_NS" \
   -o jsonpath='{.status.phase}' 2>/dev/null || echo "unknown")
-
 if [[ "$POD_STATUS" == "Running" ]]; then
+  POD_IP=$(kube get pod nettest -n "$TEST_NS" -o jsonpath='{.status.podIP}' 2>/dev/null || echo "")
   ok "✔  Test pod running (IP: $POD_IP)"
   PASS=$((PASS+1))
 else
   warn "⚠  Test pod status: $POD_STATUS"
   WARN=$((WARN+1))
 fi
-
-# Cleanup
 kube delete namespace "$TEST_NS" &>/dev/null || true
 
-# ── Final summary ─────────────────────────────────────────────────────────
+# ── Summary ───────────────────────────────────────────────────────────────
 sep
 echo ""
 echo -e "${BOLD}VERIFICATION SUMMARY${NC}"
@@ -195,14 +174,12 @@ if [[ $FAIL -eq 0 ]]; then
   echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════════════╗${NC}"
   echo -e "${GREEN}${BOLD}║  CLUSTER HEALTHY — All critical checks passed  ✔         ║${NC}"
   echo -e "${GREEN}${BOLD}╠══════════════════════════════════════════════════════════╣${NC}"
-  echo -e "${GREEN}${BOLD}║${NC}  Rancher UI:  https://rancher.local                      ${GREEN}${BOLD}║${NC}"
-  echo -e "${GREEN}${BOLD}║${NC}  Alt access:  https://${CP_IP}                          ${GREEN}${BOLD}║${NC}"
-  echo -e "${GREEN}${BOLD}║${NC}  Kubeconfig:  ~/.kube/rke2-local.yaml                    ${GREEN}${BOLD}║${NC}"
+  echo -e "${GREEN}${BOLD}║${NC}  Ingress:     https://${CP_IP}  (hostNetwork on CP)   ${GREEN}${BOLD}║${NC}"
+  echo -e "${GREEN}${BOLD}║${NC}  Kubeconfig:  ~/.kube/k8s-local.yaml                    ${GREEN}${BOLD}║${NC}"
   echo -e "${GREEN}${BOLD}║${NC}  Nodes:       3 (1 control plane + 2 workers)            ${GREEN}${BOLD}║${NC}"
   echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
 else
   echo -e "${RED}${BOLD}Some checks failed — review log: $LOGFILE${NC}"
 fi
-
 echo ""
 sep

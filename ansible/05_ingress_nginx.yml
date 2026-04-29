@@ -1,14 +1,15 @@
 #!/usr/bin/env -S ansible-playbook -vv
 ---
-# Phase 05 — Rancher UI
-# Steps: preflight → install-helm → cert-manager → rancher
+# Phase 05 — Ingress and TLS
+# Components: cert-manager, ingress-nginx (hostNetwork on control plane)
+# Steps: preflight → helm → cert-manager → ingress-nginx
 
 - name: "05-1 | Preflight — check cluster from control plane"
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Check all nodes are Ready
       ansible.builtin.command: "{{ kube }} --kubeconfig {{ kubeconfig }} get nodes -o wide"
@@ -18,7 +19,7 @@
     - ansible.builtin.debug:
         msg: "{{ nodes_out.stdout_lines }}"
 
-    - name: Check no nodes NotReady
+    - name: Fail if any node is NotReady
       ansible.builtin.command: >
         {{ kube }} --kubeconfig {{ kubeconfig }} get nodes --no-headers
       register: nodes_raw
@@ -47,10 +48,8 @@
 - name: "05-3 | Install cert-manager"
   hosts: control_plane
   gather_facts: false
-  vars:
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
   environment:
-    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+    KUBECONFIG: /etc/kubernetes/admin.conf
   tasks:
     - name: Add jetstack Helm repo
       ansible.builtin.command: helm repo add jetstack https://charts.jetstack.io --force-update
@@ -72,49 +71,58 @@
 
     - name: Wait for cert-manager deployments to roll out
       ansible.builtin.command: >
-        /var/lib/rancher/rke2/bin/kubectl rollout status
+        kubectl rollout status
         deployment/{{ item }} -n cert-manager --timeout=3m
       loop: [cert-manager, cert-manager-webhook, cert-manager-cainjector]
       changed_when: false
 
 
-- name: "05-4 | Install Rancher"
+- name: "05-4 | Install ingress-nginx (hostNetwork, pinned to control plane)"
   hosts: control_plane
   gather_facts: true
   environment:
-    KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+    KUBECONFIG: /etc/kubernetes/admin.conf
   tasks:
-    - name: Add rancher Helm repo
+    - name: Add ingress-nginx Helm repo
       ansible.builtin.command: >
-        helm repo add rancher-latest https://releases.rancher.com/server-charts/latest --force-update
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx --force-update
       changed_when: false
 
     - name: Update Helm repos
       ansible.builtin.command: helm repo update
       changed_when: false
 
-    - name: Create cattle-system namespace
+    - name: Install ingress-nginx via Helm (hostNetwork on control plane)
       ansible.builtin.command: >
-        /var/lib/rancher/rke2/bin/kubectl create namespace {{ rancher_namespace }}
-      register: ns_out
-      failed_when: ns_out.rc != 0 and 'already exists' not in ns_out.stderr
-      changed_when: ns_out.rc == 0
-
-    - name: Install Rancher via Helm
-      ansible.builtin.command: >
-        helm upgrade --install rancher rancher-latest/rancher
-        --namespace {{ rancher_namespace }}
-        --set hostname={{ rancher_hostname }}
-        --set bootstrapPassword=admin
-        --set replicas=1
-        --set ingress.tls.source=rancher
-        --set global.cattle.psp.enabled=false
-        --wait --timeout 10m
-      register: rancher_out
-      changed_when: "'already up-to-date' not in rancher_out.stdout"
+        helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx
+        --namespace ingress-nginx --create-namespace
+        --set controller.hostNetwork=true
+        --set controller.hostPort.enabled=true
+        --set controller.service.type=ClusterIP
+        --set controller.nodeSelector."kubernetes\.io/hostname"=mzcl01-cp
+        --set controller.tolerations[0].key=node-role.kubernetes.io/control-plane
+        --set controller.tolerations[0].operator=Exists
+        --set controller.tolerations[0].effect=NoSchedule
+        --wait --timeout 5m
+      register: nginx_out
+      changed_when: "'already up-to-date' not in nginx_out.stdout"
 
     - ansible.builtin.debug:
+        msg: "{{ nginx_out.stdout_lines }}"
+
+    - name: Verify ingress-nginx controller is running
+      ansible.builtin.command: >
+        kubectl get pods -n ingress-nginx
+        -l app.kubernetes.io/component=controller -o wide
+      register: nginx_pods
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ nginx_pods.stdout_lines }}"
+
+    - name: Print access info
+      ansible.builtin.debug:
         msg:
-          - "Rancher UI:  https://{{ rancher_hostname }}"
-          - "Alt URL:     https://{{ ansible_lima0.ipv4.address }}"
-          - "Username:    admin / Password: admin (change on first login)"
+          - "ingress-nginx is listening on: https://{{ ansible_lima0.ipv4.address }}"
+          - "Add to macOS /etc/hosts: {{ ansible_lima0.ipv4.address }}  <your-hostname>"
+          - "kubectl --kubeconfig ~/.kube/k8s-local.yaml get ingress -A"

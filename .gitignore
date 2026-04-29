@@ -1,5 +1,8 @@
-# Ansible output with secrets
+# Ansible output with secrets (join tokens, kubeconfigs)
+ansible/output/k8s_join_vars.yml
 ansible/output/rke2_join_vars.yml
+ansible/output/k8s-admin.conf
+ansible/output/k8s_join_token.env
 
 # macOS
 .DS_Store

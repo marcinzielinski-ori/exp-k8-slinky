@@ -1,7 +1,7 @@
 #!/usr/bin/env -S ansible-playbook -vv
 ---
-# Phase 02 — RKE2 Control Plane
-# Steps: system-prep → install → configure → start → bootstrap → export credentials
+# Phase 02 — Kubernetes Control Plane (kubeadm)
+# Steps: system-prep → containerd → k8s-packages → kubeadm-init → flannel → export-creds
 
 - name: "02-1 | System prep — control plane"
   hosts: control_plane
@@ -41,86 +41,179 @@
         - { key: net.ipv4.ip_forward,                 value: "1" }
 
 
-- name: "02-2 | Install and configure RKE2 server"
+- name: "02-2 | Install containerd"
   hosts: control_plane
   gather_facts: true
   tasks:
-    - name: Install RKE2 server binary
-      ansible.builtin.shell:
-        cmd: curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=server sh -
-        creates: /usr/local/bin/rke2
+    - name: Install apt prerequisites
+      ansible.builtin.apt:
+        name: [ca-certificates, curl, gnupg, apt-transport-https]
+        state: present
+        update_cache: true
 
-    - name: Create RKE2 config directory
+    - name: Create /etc/apt/keyrings directory
       ansible.builtin.file:
-        path: /etc/rancher/rke2
+        path: /etc/apt/keyrings
         state: directory
         mode: '0755'
 
-    - name: Write RKE2 server config
+    - name: Add Docker GPG key (containerd source)
+      ansible.builtin.shell:
+        cmd: >
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg
+          | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker apt repository
       ansible.builtin.copy:
-        dest: /etc/rancher/rke2/config.yaml
-        mode: '0640'
-        content: |
-          write-kubeconfig-mode: '0644'
-          tls-san:
-            - {{ ansible_lima0.ipv4.address }}
-            - mzcl01-cp.local
-            - localhost
-            - 127.0.0.1
-          node-ip: {{ ansible_lima0.ipv4.address }}
-          node-name: mzcl01-cp
-          cni: {{ rke2_cni }}
-          cluster-cidr: {{ rke2_cluster_cidr }}
-          service-cidr: {{ rke2_service_cidr }}
-          disable:
-            - rke2-ingress-nginx
-          kubelet-arg:
-            - node-status-update-frequency=10s
+        dest: /etc/apt/sources.list.d/docker.list
+        content: >
+          deb [arch={{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}
+          signed-by=/etc/apt/keyrings/docker.gpg]
+          https://download.docker.com/linux/ubuntu noble stable
+        mode: '0644'
+
+    - name: Install containerd.io
+      ansible.builtin.apt:
+        name: containerd.io
+        state: present
+        update_cache: true
+
+    - name: Generate default containerd config
+      ansible.builtin.shell:
+        cmd: containerd config default > /etc/containerd/config.toml
+      changed_when: true
+
+    - name: Enable SystemdCgroup in containerd config
+      ansible.builtin.replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        replace: 'SystemdCgroup = true'
+
+    - name: Enable and restart containerd
+      ansible.builtin.systemd:
+        name: containerd
+        enabled: true
+        state: restarted
 
 
-- name: "02-3 | Start RKE2 and wait for cluster bootstrap"
+- name: "02-3 | Install kubeadm, kubelet, kubectl"
+  hosts: control_plane
+  gather_facts: false
+  vars:
+    k8s_minor: "{{ k8s_version.split('.')[:2] | join('.') }}"
+  tasks:
+    - name: Add Kubernetes GPG key
+      ansible.builtin.shell:
+        cmd: >
+          curl -fsSL
+          https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/Release.key
+          | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: >
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg]
+          https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/ /
+        mode: '0644'
+
+    - name: Install kubelet, kubeadm, kubectl
+      ansible.builtin.apt:
+        name: [kubelet, kubeadm, kubectl]
+        state: present
+        update_cache: true
+
+    - name: Hold Kubernetes packages at installed version
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop: [kubelet, kubeadm, kubectl]
+
+    - name: Enable kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        enabled: true
+
+
+- name: "02-4 | kubeadm init, Flannel CNI, export join command"
   hosts: control_plane
   gather_facts: true
   tasks:
-    - name: Enable and start rke2-server service
-      ansible.builtin.systemd:
-        name: rke2-server
-        enabled: true
-        state: started
+    - name: Check if cluster already initialised
+      ansible.builtin.stat:
+        path: /etc/kubernetes/admin.conf
+      register: admin_conf
 
-    - name: Wait for RKE2 API server to be ready (up to 5 min)
-      ansible.builtin.command:
-        cmd: /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes
-      register: api_ready
-      until: api_ready.rc == 0
-      retries: 30
+    - name: Ensure /root/.kube exists
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: '0700'
+
+    - name: Run kubeadm init
+      ansible.builtin.command: >
+        kubeadm init
+        --apiserver-advertise-address={{ ansible_lima0.ipv4.address }}
+        --pod-network-cidr={{ pod_cidr }}
+        --service-cidr={{ service_cidr }}
+        --node-name=mzcl01-cp
+      when: not admin_conf.stat.exists
+      register: kubeadm_init
+      changed_when: true
+
+    - ansible.builtin.debug:
+        msg: "{{ kubeadm_init.stdout_lines | default(['already initialised']) }}"
+
+    - name: Copy admin.conf to /root/.kube/config
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: true
+        mode: '0600'
+
+    - name: Install Flannel CNI
+      ansible.builtin.command: >
+        kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f
+        https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      register: flannel_out
+      changed_when: "'created' in flannel_out.stdout or 'configured' in flannel_out.stdout"
+
+    - name: Wait for control-plane node to become Ready (up to 4 min)
+      ansible.builtin.command: >
+        kubectl --kubeconfig /etc/kubernetes/admin.conf
+        get node mzcl01-cp
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      register: cp_ready
+      until: cp_ready.stdout == 'True'
+      retries: 24
       delay: 10
       changed_when: false
 
-    - name: Read node join token
-      ansible.builtin.slurp:
-        src: /var/lib/rancher/rke2/server/node-token
-      register: node_token
+    - name: Generate worker join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: join_cmd
+      changed_when: false
 
     - name: Save join vars to output dir (for phase 03)
       ansible.builtin.copy:
-        dest: "{{ output_dir }}/rke2_join_vars.yml"
+        dest: "{{ output_dir }}/k8s_join_vars.yml"
         mode: '0600'
         content: |
-          rke2_join_token: "{{ node_token.content | b64decode | trim }}"
-          rke2_server_url: "https://{{ ansible_lima0.ipv4.address }}:9345"
-          rke2_cp_ip: "{{ ansible_lima0.ipv4.address }}"
+          k8s_join_command: "{{ join_cmd.stdout }}"
+          k8s_cp_ip: "{{ ansible_lima0.ipv4.address }}"
       delegate_to: localhost
       become: false
 
-    - name: Fetch raw kubeconfig from control plane
+    - name: Fetch kubeconfig from control plane
       ansible.builtin.fetch:
-        src: /etc/rancher/rke2/rke2.yaml
-        dest: "{{ output_dir }}/rke2-raw.yaml"
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ output_dir }}/k8s-admin.conf"
         flat: true
 
 
-- name: "02-4 | Set up kubeconfig on macOS host"
+- name: "02-5 | Set up kubeconfig on macOS host"
   hosts: localhost
   gather_facts: false
   become: false
@@ -133,7 +226,7 @@
 
     - name: Load CP IP from join vars
       ansible.builtin.include_vars:
-        file: "{{ output_dir }}/rke2_join_vars.yml"
+        file: "{{ output_dir }}/k8s_join_vars.yml"
 
     - name: Ensure ~/.kube directory exists
       ansible.builtin.file:
@@ -141,27 +234,20 @@
         state: directory
         mode: '0700'
 
-    - name: Replace loopback address with CP IP in kubeconfig
+    - name: Replace loopback with CP IP in kubeconfig
       ansible.builtin.replace:
-        path: "{{ output_dir }}/rke2-raw.yaml"
-        regexp: '127\.0\.0\.1'
-        replace: "{{ rke2_cp_ip }}"
+        path: "{{ output_dir }}/k8s-admin.conf"
+        regexp: 'server: https://127\.0\.0\.1:6443'
+        replace: "server: https://{{ k8s_cp_ip }}:6443"
 
-    - name: Set context name to rke2-local
-      ansible.builtin.replace:
-        path: "{{ output_dir }}/rke2-raw.yaml"
-        regexp: '\bdefault\b'
-        replace: rke2-local
-
-    - name: Write kubeconfig to ~/.kube/rke2-local.yaml
+    - name: Write kubeconfig to ~/.kube/k8s-local.yaml
       ansible.builtin.copy:
-        src: "{{ output_dir }}/rke2-raw.yaml"
+        src: "{{ output_dir }}/k8s-admin.conf"
         dest: "{{ kubeconfig }}"
         mode: '0600'
 
     - name: Verify cluster is reachable from host
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ kubeconfig }} get nodes -o wide
+      ansible.builtin.command: kubectl --kubeconfig {{ kubeconfig }} get nodes -o wide
       register: nodes_out
       changed_when: false
 

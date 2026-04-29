@@ -1,17 +1,32 @@
 #!/usr/bin/env -S ansible-playbook -vv
 ---
-# Phase 03b — Add new nodes to existing RKE2 cluster
+# Phase 03b — Add new nodes to existing Kubernetes cluster (kubeadm join)
 # Joins mzcl01-w3 (worker) and mzcl01-sllogin1 (dedicated slurm-login node)
-# Steps: load-join-vars → system-prep → install-agent → start → label+taint
+# Steps: fresh-join-token → system-prep → containerd → k8s-packages → join → label+taint
 
-- name: "03b-1 | Load join vars on localhost"
-  hosts: localhost
-  gather_facts: false
-  become: false
+- name: "03b-1 | Generate fresh join command on control plane"
+  hosts: control_plane
+  gather_facts: true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
   tasks:
-    - name: Load RKE2 join vars from phase 02 output
-      ansible.builtin.include_vars:
-        file: "{{ output_dir }}/rke2_join_vars.yml"
+    - name: Create a new join token (24h TTL)
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: join_cmd
+      changed_when: false
+
+    - name: Save fresh join vars to output dir
+      ansible.builtin.copy:
+        dest: "{{ output_dir }}/k8s_join_vars.yml"
+        mode: '0600'
+        content: |
+          k8s_join_command: "{{ join_cmd.stdout }}"
+          k8s_cp_ip: "{{ ansible_lima0.ipv4.address }}"
+      delegate_to: localhost
+      become: false
+
+    - ansible.builtin.debug:
+        msg: "Join token ready — CP at {{ ansible_lima0.ipv4.address }}:6443"
 
 
 - name: "03b-2 | System prep — new nodes"
@@ -52,44 +67,122 @@
         - { key: net.ipv4.ip_forward,                 value: "1" }
 
 
-- name: "03b-3 | Install and configure RKE2 agent on new nodes"
+- name: "03b-3 | Install containerd and kubeadm on new nodes"
   hosts: workers:slurm_login_nodes
   gather_facts: true
+  vars:
+    k8s_minor: "{{ k8s_version.split('.')[:2] | join('.') }}"
   tasks:
-    - name: Install RKE2 agent binary
-      ansible.builtin.shell:
-        cmd: curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=agent sh -
-        creates: /usr/local/bin/rke2
+    - name: Install apt prerequisites
+      ansible.builtin.apt:
+        name: [ca-certificates, curl, gnupg, apt-transport-https]
+        state: present
+        update_cache: true
 
-    - name: Create RKE2 config directory
+    - name: Create /etc/apt/keyrings directory
       ansible.builtin.file:
-        path: /etc/rancher/rke2
+        path: /etc/apt/keyrings
         state: directory
         mode: '0755'
 
-    - name: Write RKE2 agent config
+    - name: Add Docker GPG key (containerd source)
+      ansible.builtin.shell:
+        cmd: >
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg
+          | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker apt repository
       ansible.builtin.copy:
-        dest: /etc/rancher/rke2/config.yaml
-        mode: '0640'
-        content: |
-          server: {{ hostvars['localhost']['rke2_server_url'] }}
-          token: {{ hostvars['localhost']['rke2_join_token'] }}
-          node-ip: {{ ansible_lima0.ipv4.address }}
-          node-name: {{ inventory_hostname }}
+        dest: /etc/apt/sources.list.d/docker.list
+        content: >
+          deb [arch={{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}
+          signed-by=/etc/apt/keyrings/docker.gpg]
+          https://download.docker.com/linux/ubuntu noble stable
+        mode: '0644'
 
-    - name: Enable and start rke2-agent service
+    - name: Install containerd.io
+      ansible.builtin.apt:
+        name: containerd.io
+        state: present
+        update_cache: true
+
+    - name: Generate default containerd config
+      ansible.builtin.shell:
+        cmd: containerd config default > /etc/containerd/config.toml
+      changed_when: true
+
+    - name: Enable SystemdCgroup in containerd config
+      ansible.builtin.replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        replace: 'SystemdCgroup = true'
+
+    - name: Enable and restart containerd
       ansible.builtin.systemd:
-        name: rke2-agent
+        name: containerd
         enabled: true
-        state: started
+        state: restarted
+
+    - name: Add Kubernetes GPG key
+      ansible.builtin.shell:
+        cmd: >
+          curl -fsSL
+          https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/Release.key
+          | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: >
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg]
+          https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/ /
+        mode: '0644'
+
+    - name: Install kubelet and kubeadm
+      ansible.builtin.apt:
+        name: [kubelet, kubeadm]
+        state: present
+        update_cache: true
+
+    - name: Hold Kubernetes packages at installed version
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop: [kubelet, kubeadm]
+
+    - name: Enable kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        enabled: true
 
 
-- name: "03b-4 | Wait for new nodes to become Ready"
+- name: "03b-4 | Join new nodes to cluster"
+  hosts: workers:slurm_login_nodes
+  gather_facts: false
+  tasks:
+    - name: Load join vars
+      ansible.builtin.include_vars:
+        file: "{{ output_dir }}/k8s_join_vars.yml"
+
+    - name: Check if node already joined
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: Run kubeadm join
+      ansible.builtin.command: "{{ k8s_join_command }}"
+      when: not kubelet_conf.stat.exists
+      changed_when: true
+
+
+- name: "03b-5 | Wait for new nodes to become Ready"
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Wait for mzcl01-w3 to be Ready
       ansible.builtin.command: >
@@ -120,12 +213,12 @@
         msg: "{{ nodes_out.stdout_lines }}"
 
 
-- name: "03b-5 | Label and taint mzcl01-sllogin1 as dedicated slurm-login node"
+- name: "03b-6 | Label and taint mzcl01-sllogin1 as dedicated slurm-login node"
   hosts: control_plane
   gather_facts: false
   vars:
-    kube: /var/lib/rancher/rke2/bin/kubectl
-    kubeconfig: /etc/rancher/rke2/rke2.yaml
+    kube: kubectl
+    kubeconfig: /etc/kubernetes/admin.conf
   tasks:
     - name: Label sllogin1 as slurm-login dedicated node
       ansible.builtin.command: >

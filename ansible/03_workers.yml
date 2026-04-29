@@ -1,19 +1,19 @@
 #!/usr/bin/env -S ansible-playbook -vv
 ---
-# Phase 03 — RKE2 Worker Nodes
-# Steps: load-credentials → system-prep → install-agent → start-agent → verify-join
+# Phase 03 — Kubernetes Worker Nodes (kubeadm join)
+# Steps: load-join-vars → system-prep → containerd → k8s-packages → join → verify
 
 - name: "03-1 | Load join credentials from phase 02"
   hosts: localhost
   gather_facts: false
   become: false
   tasks:
-    - name: Load RKE2 join vars
+    - name: Load k8s join vars
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/output/rke2_join_vars.yml"
+        file: "{{ playbook_dir }}/output/k8s_join_vars.yml"
 
     - ansible.builtin.debug:
-        msg: "Joining workers to {{ rke2_server_url }}"
+        msg: "Joining workers to {{ k8s_cp_ip }}:6443"
 
 
 - name: "03-2 | System prep — worker nodes"
@@ -54,58 +54,136 @@
         - { key: net.ipv4.ip_forward,                 value: "1" }
 
 
-- name: "03-3 | Install and configure RKE2 agent"
+- name: "03-3 | Install containerd on worker nodes"
   hosts: workers
   gather_facts: true
   tasks:
-    - name: Install RKE2 agent binary
-      ansible.builtin.shell:
-        cmd: curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=agent sh -
-        creates: /usr/local/bin/rke2
+    - name: Install apt prerequisites
+      ansible.builtin.apt:
+        name: [ca-certificates, curl, gnupg, apt-transport-https]
+        state: present
+        update_cache: true
 
-    - name: Create RKE2 config directory
+    - name: Create /etc/apt/keyrings directory
       ansible.builtin.file:
-        path: /etc/rancher/rke2
+        path: /etc/apt/keyrings
         state: directory
         mode: '0755'
 
-    - name: Write RKE2 agent config
+    - name: Add Docker GPG key (containerd source)
+      ansible.builtin.shell:
+        cmd: >
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg
+          | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker apt repository
       ansible.builtin.copy:
-        dest: /etc/rancher/rke2/config.yaml
-        mode: '0640'
-        content: |
-          server: {{ hostvars['localhost']['rke2_server_url'] }}
-          token:  {{ hostvars['localhost']['rke2_join_token'] }}
-          node-ip: {{ ansible_lima0.ipv4.address }}
-          node-name: {{ inventory_hostname }}
-          kubelet-arg:
-            - node-status-update-frequency=10s
+        dest: /etc/apt/sources.list.d/docker.list
+        content: >
+          deb [arch={{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}
+          signed-by=/etc/apt/keyrings/docker.gpg]
+          https://download.docker.com/linux/ubuntu noble stable
+        mode: '0644'
 
-    - name: Enable and start rke2-agent service
+    - name: Install containerd.io
+      ansible.builtin.apt:
+        name: containerd.io
+        state: present
+        update_cache: true
+
+    - name: Generate default containerd config
+      ansible.builtin.shell:
+        cmd: containerd config default > /etc/containerd/config.toml
+      changed_when: true
+
+    - name: Enable SystemdCgroup in containerd config
+      ansible.builtin.replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        replace: 'SystemdCgroup = true'
+
+    - name: Enable and restart containerd
       ansible.builtin.systemd:
-        name: rke2-agent
+        name: containerd
         enabled: true
-        state: started
+        state: restarted
 
 
-- name: "03-4 | Verify worker nodes joined the cluster"
+- name: "03-4 | Install kubeadm and kubelet on worker nodes"
+  hosts: workers
+  gather_facts: false
+  vars:
+    k8s_minor: "{{ k8s_version.split('.')[:2] | join('.') }}"
+  tasks:
+    - name: Add Kubernetes GPG key
+      ansible.builtin.shell:
+        cmd: >
+          curl -fsSL
+          https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/Release.key
+          | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: >
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg]
+          https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor }}/deb/ /
+        mode: '0644'
+
+    - name: Install kubelet and kubeadm
+      ansible.builtin.apt:
+        name: [kubelet, kubeadm]
+        state: present
+        update_cache: true
+
+    - name: Hold Kubernetes packages at installed version
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop: [kubelet, kubeadm]
+
+    - name: Enable kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        enabled: true
+
+
+- name: "03-5 | Join worker nodes to cluster"
+  hosts: workers
+  gather_facts: false
+  tasks:
+    - name: Check if node already joined
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: Run kubeadm join
+      ansible.builtin.command: "{{ hostvars['localhost']['k8s_join_command'] }}"
+      when: not kubelet_conf.stat.exists
+      changed_when: true
+
+
+- name: "03-6 | Verify worker nodes joined the cluster"
   hosts: localhost
   gather_facts: false
   become: false
   tasks:
-    - name: Wait for each worker node to appear and reach Ready
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ kubeconfig }} get node {{ item }}
+    - name: Wait for each worker node to be Ready
+      ansible.builtin.command: >
+        kubectl --kubeconfig {{ kubeconfig }}
+        get node {{ item }}
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
       register: node_check
-      until: "'Ready' in node_check.stdout"
+      until: node_check.stdout == 'True'
       retries: 18
       delay: 10
       loop: [mzcl01-w1, mzcl01-w2]
       changed_when: false
 
     - name: Show final cluster node status
-      ansible.builtin.command:
-        cmd: kubectl --kubeconfig {{ kubeconfig }} get nodes -o wide
+      ansible.builtin.command: kubectl --kubeconfig {{ kubeconfig }} get nodes -o wide
       register: nodes_out
       changed_when: false
 
